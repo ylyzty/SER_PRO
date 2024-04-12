@@ -68,7 +68,7 @@ int readAagFile(const char *aagFile) {
 
     // TODO: 释放内存空间
     delete solver;
-    delete fanoutGraph;
+    delete[] fanoutGraph;
     for (int i = 0; i < (inputNums + andNums); i++) {
         delete [] pathMap[i];
     }
