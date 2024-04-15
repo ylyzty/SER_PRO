@@ -36,10 +36,10 @@ typedef struct AigerPath {
     int pathNo;
 } AigerPath;
 
-typedef struct AigerPathIn2Out {
+typedef struct AigerPathToOutputs {
     std::vector<AigerPath> pathToOutputs;
     std::vector<int> solvedResult;
-    int pathIn2OutNum;
+    int pathNums;
 } AigerPathIn2Out;
 
 typedef struct Fan {
@@ -64,7 +64,7 @@ int getAffectedOutputs(unsigned int andLit, std::vector<unsigned int> *affectedO
  * 从输出开始寻找到输入的所有路径, 构建 pathmap
  * @param pathMap
  */
-void createPathMap(AigerPathIn2Out **pathMap);
+void createPathMap(AigerPathToOutputs **pathMap);
 
 /**
  * 给 AigState 分配内存
@@ -75,6 +75,11 @@ void aigToSATInit();
  * 将 Aiger 电路转化为 SAT约束
  */
 void aigToSAT();
+
+/**
+ * 刷新 Minisat::Solver
+ */
+void refreshSolver();
 
 /**
  * 创建新的 Minisat::Lit 变量下标
@@ -100,23 +105,26 @@ int import(AigState* state, unsigned int lit);
 /**
  * 一元约束
  * @param p
+ * @param flag: 是否是电路初始约束
  */
-void unary(int p);
+void unary(int p, bool flag);
 
 /**
  * 二元约束
  * @param p
  * @param q
+ * @param flag: 是否是电路初始约束
  */
-void binary(int p, int q);
+void binary(int p, int q, bool flag);
 
 /**
  * 三元约束
  * @param p
  * @param q
  * @param r
+ * @param flag: 是否是电路初始约束
  */
-void ternary(int p, int q, int r);
+void ternary(int p, int q, int r, bool flag);
 
 /**
  * 与门约束
@@ -124,7 +132,7 @@ void ternary(int p, int q, int r);
  * @param rhs0
  * @param rhs1
  */
-void andGateConstraint(int lhs, int rhs0, int rhs1);
+void andGateConstraint(int lhs, int rhs0, int rhs1, bool flag);
 
 int getPathSATNum(std::vector<unsigned int> path);
 

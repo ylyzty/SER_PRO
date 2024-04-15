@@ -53,3 +53,14 @@ void swap(std::vector<unsigned int>& vec, int l, int r) {
     vec.at(l) = vec.at(r);
     vec.at(r) = tmp;
 }
+
+void printAigerPath(std::vector<unsigned int> path) {
+    for (int i = 0; i < path.size(); i++) {
+        if (i == path.size() - 1) {
+            std::cout << path.at(i) << std::endl;
+        }
+        else {
+            std::cout << path.at(i) << " -> ";
+        }
+    }
+}

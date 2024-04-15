@@ -4,6 +4,7 @@
 
 #ifndef SER_PRO_TOOLS_H
 #define SER_PRO_TOOLS_H
+#include <iostream>
 #include <vector>
 #include "logicMaskSAT.h"
 
@@ -30,5 +31,11 @@ unsigned int toEven(unsigned int t);
 void reverseVectorInPlace(std::vector<unsigned int>& vec);
 std::vector<unsigned int> reverseVectorWithReturns(std::vector<unsigned int> vec);
 void swap(std::vector<unsigned int>& vec, int l, int r);
+
+/**
+ * 打印 path 路径
+ * @param path
+ */
+void printAigerPath(std::vector<unsigned int> path);
 
 #endif //SER_PRO_TOOLS_H

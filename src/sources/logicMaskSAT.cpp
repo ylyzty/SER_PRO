@@ -17,13 +17,13 @@
 
 
 /* ========== GLOBAL VARIABLES ========== */
-//std::map<unsigned int, aiger_and*> lit2And;
 Minisat::Solver* solver;
 aiger* circuitModel;
 AigState* aigState;
+std::vector<std::vector<Minisat::Lit>>* circuitClauses;
 
 Fan* fanoutGraph;
-AigerPathIn2Out** pathMap;
+AigerPathToOutputs** pathMap;
 
 unsigned int inputNums;
 unsigned int andNums;
@@ -49,25 +49,50 @@ int readAagFile(const char *aagFile) {
     andNums = circuitModel->num_ands;
     outputNums = circuitModel->num_outputs;
 
-    // TODO: 待释放空间
     fanoutGraph = new Fan[inputNums + andNums];
     createFanout();
 
-    // TODO: 待释放空间
-    pathMap = new AigerPathIn2Out*[inputNums + andNums];
+    pathMap = new AigerPathToOutputs*[inputNums + andNums];
     for (int i = 0; i < inputNums + andNums; i++) {
-        pathMap[i] = new AigerPathIn2Out[outputNums];
+        pathMap[i] = new AigerPathToOutputs[outputNums];
     }
     createPathMap(pathMap);
 
     aigToSATInit();
     aigToSAT();
 
-    int SATNum = getPathSATNum(pathMap[2][0].pathToOutputs.at(0).path);
-    std::cout << "SATNum: " << SATNum << std::endl;
+    for (unsigned int start = inputNums; start < (inputNums + andNums); start++) {
+        for (unsigned int end = 0; end < outputNums; end++) {
+            std::cout << start << " -> " << end << std::endl;
+            int pathNums = pathMap[start][end].pathNums;
+            std::vector<unsigned int> path;
+            int SATSum = 0;
+            int SATNum = 0;
+            for (int i = 0; i < pathNums; i++) {
+                path = pathMap[start][end].pathToOutputs.at(i).path;
+                std::cout << "Path: ";
+                printAigerPath(path);    // 打印路径
+
+                if (path.size() <= 1) {
+                    std::cout << "SATNum: " << pow(2, inputNums) << std::endl;
+                }
+                else {
+                    refreshSolver();
+                    SATNum = getPathSATNum(path);
+                    std::cout << "Path SAT Num: " << SATNum << std::endl;
+                }
+
+                SATSum += SATNum;
+            }
+            std::cout << "All Path SAT Num: " << SATSum << std::endl;
+        }
+    }
 
     // TODO: 释放内存空间
     delete solver;
+    delete circuitModel;
+    delete aigState;
+    delete circuitClauses;
     delete[] fanoutGraph;
     for (int i = 0; i < (inputNums + andNums); i++) {
         delete [] pathMap[i];
@@ -182,7 +207,7 @@ int getAffectedOutputs(unsigned int andLit, std::vector<unsigned int>* affectedO
  * 从输出开始寻找到输入的所有路径, 构建 pathmap
  * @param pathMap
  */
-void createPathMap(AigerPathIn2Out **pathMap) {
+void createPathMap(AigerPathToOutputs **pathMap) {
     for (int j = 0; j < outputNums; j++) {
         std::vector<unsigned int> mainStack;
         std::stack<std::vector<unsigned int>> assistStack;
@@ -201,6 +226,7 @@ void createPathMap(AigerPathIn2Out **pathMap) {
             AigerPath tmpPath;
             tmpPath.path = reverseVectorWithReturns(mainStack);
             pathMap[toEven(mainStack.back()) / 2 - 1][j].pathToOutputs.push_back(tmpPath);
+            pathMap[toEven(mainStack.back()) / 2 - 1][j].pathNums += 1;
 
             // 取队尾元素
             if (toEven(mainStack.back()) <= inputNums * 2) {
@@ -248,10 +274,10 @@ void aigToSATInit() {
  */
 void aigToSAT() {
     varNums = 0;
-    // TODO: 会造成内存泄漏，需调整写法
     solver = new Minisat::Solver();
-    createNewVar();     // 跳过 0
+    circuitClauses = new std::vector<std::vector<Minisat::Lit>>();
 
+    createNewVar();     // 跳过 0
     firstInputIdx = 1;
     firstAndIdx = firstInputIdx + circuitModel->num_inputs;
 
@@ -266,13 +292,43 @@ void aigToSAT() {
         aiger_and *curAnd = circuitModel->ands + i;
         andGateConstraint(lhsVar,
                           import(aigState, curAnd->rhs0),
-                          import(aigState, curAnd->rhs1));
+                          import(aigState, curAnd->rhs1),
+                          true);
 
     }
 
 //    solver->toDimacs("aig2sat_cnf.txt");
 }
 
+void refreshSolver() {
+    delete solver;
+
+    solver = new Minisat::Solver();
+    int cnt = varNums;
+    varNums = 0;
+
+    //  还原 Solver 变量
+    for (int i = 0; i < cnt; i++) {
+        createNewVar();
+    }
+
+    //  还原 Solver 约束
+    for (auto cur : *circuitClauses) {
+        if (cur.size() == 2) {
+            solver->addClause(cur.at(0), cur.at(1));
+        }
+        else if (cur.size() == 3) {
+            solver->addClause(cur.at(0), cur.at(1), cur.at(2));
+        }
+        else if (cur.size() == 1) {
+            solver->addClause(cur.at(0));
+        }
+        else {
+            printf("Error: abnormal length of clauses!");
+            return;
+        }
+    }
+}
 
 /**
  * 创建新的 Minisat::Var 变量
@@ -322,9 +378,15 @@ int import(AigState* state, unsigned int lit) {
  * 添加一元约束
  * @param p
  */
-void unary(int p) {
+void unary(int p, bool flag) {
     Minisat::Lit litA = (p > 0) ? Minisat::mkLit(p, false) : Minisat::mkLit(-p, true);
     solver->addClause(litA);
+
+    if (flag) {
+        std::vector<Minisat::Lit> vec;
+        vec.push_back(litA);
+        circuitClauses->push_back(vec);
+    }
 }
 
 /**
@@ -332,25 +394,38 @@ void unary(int p) {
  * @param p
  * @param q
  */
-void binary(int p, int q) {
+void binary(int p, int q, bool flag) {
     Minisat::Lit litA = ((p > 0) ? Minisat::mkLit(p, false) : Minisat::mkLit(-p, true));
     Minisat::Lit litB = ((q > 0) ? Minisat::mkLit(q, false) : Minisat::mkLit(-q, true));
-
     solver->addClause(litA, litB);
+
+    if (flag) {
+        std::vector<Minisat::Lit> vec;
+        vec.push_back(litA);
+        vec.push_back(litB);
+        circuitClauses->push_back(vec);
+    }
 }
 
-void ternary(int p, int q, int r) {
+void ternary(int p, int q, int r, bool flag) {
     Minisat::Lit litA = (p > 0) ? Minisat::mkLit(p, false) : Minisat::mkLit(-p, true);
     Minisat::Lit litB = (q > 0) ? Minisat::mkLit(q, false) : Minisat::mkLit(-q, true);
     Minisat::Lit litC = (r > 0) ? Minisat::mkLit(r, false) : Minisat::mkLit(-r, true);
-
     solver->addClause(litA, litB, litC);
+
+    if (flag) {
+        std::vector<Minisat::Lit> vec;
+        vec.push_back(litA);
+        vec.push_back(litB);
+        vec.push_back(litC);
+        circuitClauses->push_back(vec);
+    }
 }
 
-void andGateConstraint(int lhs, int rhs0, int rhs1) {
-    binary(-lhs, rhs0);
-    binary(-lhs, rhs1);
-    ternary(lhs, -rhs0, -rhs1);
+void andGateConstraint(int lhs, int rhs0, int rhs1, bool flag) {
+    binary(-lhs, rhs0, flag);
+    binary(-lhs, rhs1, flag);
+    ternary(lhs, -rhs0, -rhs1, flag);
 }
 
 int getAndGateSATNum(unsigned int andLit) {
@@ -376,10 +451,10 @@ int getPathSATNum(std::vector<unsigned int> path) {
         lhs = path[fast];
         aiger_and *curAnd = circuitModel->ands + (toEven(lhs) / 2 - inputNums - 1);
         if (toEven(cur) == toEven(curAnd->rhs0)) {
-            unary(import(aigState, curAnd->rhs1));
+            unary(import(aigState, curAnd->rhs1), false);
         }
         else {
-            unary(import(aigState, curAnd->rhs0));
+            unary(import(aigState, curAnd->rhs0), false);
         }
 
         slow += 1;
@@ -399,12 +474,15 @@ int getPathSATNum(std::vector<unsigned int> path) {
             if (value == Minisat::lbool((uint8_t)0)) {
                 // TRUE ~P
                 tmpLits.push(varToLit(import(aigState, curInput->lit + 1)));
-                std::cout << "TRUE  ";
+                std::cout << "1  ";
             }
-            else {
+            else if (value == Minisat::lbool((uint8_t)1)) {
                 // FALSE P
                 tmpLits.push(varToLit(import(aigState, curInput->lit)));
-                std::cout << "FALSE  ";
+                std::cout << "0  ";
+            }
+            else {
+                printf("Error: unknown solve!");
             }
         }
         std::cout << std::endl;
