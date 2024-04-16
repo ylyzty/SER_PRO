@@ -5,7 +5,7 @@
 extern aiger* circuitModel;
 
 int main() {
-    std::string filename = "../../aigers/xor1.aag";
+    std::string filename = "aigers/xor1.aag";
     readAagFile(filename.c_str());
 
     return 0;

@@ -12,9 +12,6 @@
 #include <map>
 
 #include "../headers/logicMaskSAT.h"
-#include "../headers/tools.h"
-
-
 
 /* ========== GLOBAL VARIABLES ========== */
 Minisat::Solver* solver;
@@ -49,6 +46,9 @@ int readAagFile(const char *aagFile) {
     andNums = circuitModel->num_ands;
     outputNums = circuitModel->num_outputs;
 
+    // 检验 aag 文件是否是 紧凑且无逆序的
+    checkAigerModel(circuitModel);
+
     fanoutGraph = new Fan[inputNums + andNums];
     createFanout();
 
@@ -74,14 +74,14 @@ int readAagFile(const char *aagFile) {
                 printAigerPath(path);    // 打印路径
 
                 if (path.size() <= 1) {
-                    std::cout << "SATNum: " << pow(2, inputNums) << std::endl;
+                    SATNum = (int) pow(2, inputNums);
                 }
                 else {
                     refreshSolver();
                     SATNum = getPathSATNum(path);
-                    std::cout << "Path SAT Num: " << SATNum << std::endl;
                 }
 
+                std::cout << "Path SAT Num: " << SATNum << std::endl;
                 SATSum += SATNum;
             }
             std::cout << "All Path SAT Num: " << SATSum << std::endl;
@@ -297,7 +297,15 @@ void aigToSAT() {
 
     }
 
-//    solver->toDimacs("aig2sat_cnf.txt");
+    std::string filename = "cnfs/xor1.txt";
+//    FILE* f = fopen(filename.c_str(), "w+");
+//    if (f == nullptr) {
+//        printf("");
+//    }
+//
+//    fprintf(f, "write to txt");
+//    fclose(f);
+    solver->toDimacs(filename.c_str());
 }
 
 void refreshSolver() {
@@ -324,8 +332,8 @@ void refreshSolver() {
             solver->addClause(cur.at(0));
         }
         else {
-            printf("Error: abnormal length of clauses!");
-            return;
+            std::cerr << "Error: Abnormal length of clauses!" << std::endl;
+            exit(ERROR_CODE_ABNORMAL_CLAUSES_LENGTH);
         }
     }
 }
@@ -360,8 +368,8 @@ int import(AigState* state, unsigned int lit) {
     int res = 0;
 
     if (tmpIdx <= 0) {
-        printf("Error: abnormal index!");
-        return 0;
+        std::cerr << "Error: Abnormal lit!" << std::endl;
+        exit(ERROR_CODE_ABNORMAL_LIT);
     }
     else if (tmpIdx < firstAndIdx) {
         idx = state->inputs[tmpIdx - 1];
@@ -482,7 +490,7 @@ int getPathSATNum(std::vector<unsigned int> path) {
                 std::cout << "0  ";
             }
             else {
-                printf("Error: unknown solve!");
+                printf("Warning: unknown solve!");
             }
         }
         std::cout << std::endl;
@@ -492,4 +500,33 @@ int getPathSATNum(std::vector<unsigned int> path) {
     }
 
     return res;
+}
+
+
+void checkAigerModel(aiger* model) {
+    checkAigerInputs(model);
+    checkAigerAndGates(model);
+}
+
+void checkAigerInputs(aiger* model) {
+    for (int i = 1; i < inputNums; i++) {
+        if ((model->inputs + i)->lit - (model->inputs + i - 1)->lit != 2) {
+            std::cerr << "Error: Inputs are not compact!" << std::endl;
+            exit(ERROR_CODE_UNCOMPACT);
+        }
+    }
+}
+
+void checkAigerAndGates(aiger* model) {
+    for (int i = 1; i < andNums; i++) {
+        if ((model->ands + i)->lhs < (model->ands + i - 1)->lhs) {
+            std::cerr << "Error: And gate reverse order!" << std::endl;
+            exit(ERROR_CODE_REVERSE_ORDER);
+        }
+
+        if ((model->ands + i)->lhs - (model->ands + i - 1)->lhs != 2) {
+            std::cerr << "Error: And gates are not compact!" << std::endl;
+            exit(ERROR_CODE_UNCOMPACT);
+        }
+    }
 }

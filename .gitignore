@@ -2,3 +2,4 @@
 aigers/
 cnfs/
 src/cmake-build-debug/
+src/sources/*.txt

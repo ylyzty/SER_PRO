@@ -9,6 +9,8 @@
 #include <stack>
 #include <algorithm>
 
+#include "../headers/definitions.h"
+#include "../headers/tools.h"
 #include "../../minisat/core/Solver.h"
 
 extern "C" {
@@ -49,6 +51,10 @@ typedef struct Fan {
 
 /* ========= declare func ======== */
 int readAagFile(const char* filename);
+
+void checkAigerModel(aiger* model);
+void checkAigerInputs(aiger* model);
+void checkAigerAndGates(aiger* model);
 
 /**
  * 根据 Aiger 类型的 CircuitModel, 建立电路的连接关系
