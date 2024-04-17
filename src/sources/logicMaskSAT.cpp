@@ -10,6 +10,7 @@
 #include <queue>
 #include <set>
 #include <map>
+#include <chrono>
 
 #include "../headers/logicMaskSAT.h"
 
@@ -36,10 +37,15 @@ int varNums;
  * Read aiger file
  */
 int readAagFile(const char *aagFile) {
+    // 1. 统计电路解析和审查时间
+    std::chrono::steady_clock::time_point circuitAnalysisStart = std::chrono::steady_clock::now();
     circuitModel = (aiger *) malloc(sizeof(aiger));
     circuitModel = aiger_init();
     aiger_open_and_read_from_file(circuitModel, aagFile);
     aiger_check(circuitModel);
+    std::chrono::steady_clock::time_point circuitAnalysisEnd = std::chrono::steady_clock::now();
+    long long circuitAnalysisElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(circuitAnalysisEnd - circuitAnalysisStart).count();
+    std::cout << "Circuit analysis time: " << circuitAnalysisElapsed << "ms" << std::endl;
 
     // 根据解析的aag文件完善信息
     inputNums = circuitModel->num_inputs;
@@ -49,22 +55,40 @@ int readAagFile(const char *aagFile) {
     // 检验 aag 文件是否是 紧凑且无逆序的
     checkAigerModel(circuitModel);
 
+    // 2. 统计Fanouts创建时间
+    std::chrono::steady_clock::time_point createFanoutStart = std::chrono::steady_clock::now();
     fanoutGraph = new Fan[inputNums + andNums];
     createFanout();
+    std::chrono::steady_clock::time_point creatFanoutEnd = std::chrono::steady_clock::now();
+    long long createFanoutElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(circuitAnalysisEnd - circuitAnalysisStart).count();
+    std::cout << "Create Fanout time: " << createFanoutElapsed << "ms" << std::endl;
 
+    // 3. 统计创建pathMap的时间
+    std::chrono::steady_clock::time_point createPathMapStart = std::chrono::steady_clock::now();
     pathMap = new AigerPathToOutputs*[inputNums + andNums];
     for (int i = 0; i < inputNums + andNums; i++) {
         pathMap[i] = new AigerPathToOutputs[outputNums];
     }
     createPathMap(pathMap);
+    std::chrono::steady_clock::time_point createPathMapEnd = std::chrono::steady_clock::now();
+    long long createPathMapElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(createPathMapEnd - createPathMapStart).count();
+    std::cout << "Create PathMap time: " << createPathMapElapsed << "ms" << std::endl;
 
+    // 4. 统计初始化Solver时间
+    std::chrono::steady_clock::time_point initSATSolverStart = std::chrono::steady_clock::now();
     aigToSATInit();
     aigToSAT();
+    std::chrono::steady_clock::time_point initSATSolverEnd = std::chrono::steady_clock::now();
+    long long initSATSolverElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(initSATSolverStart - initSATSolverEnd).count();
+    std::cout << "Init SAT Solver time: " << createPathMapElapsed << "ms" << std::endl;
 
+    // 5. 统计 SAT 求解时间
+    std::chrono::steady_clock::time_point SATSolvingStart = std::chrono::steady_clock::now();
     for (unsigned int start = inputNums; start < (inputNums + andNums); start++) {
         for (unsigned int end = 0; end < outputNums; end++) {
-            std::cout << start << " ==========> " << end << std::endl;
             int pathNums = pathMap[start][end].pathNums;
+            std::cout << start << " ==========> " << end << ": " << pathNums << std::endl;
+
             std::vector<unsigned int> path;
             double SATSum = 0;
             double SATNum = 0;
@@ -87,6 +111,9 @@ int readAagFile(const char *aagFile) {
             std::cout << "All Path SAT Num: " << SATSum << std::endl;
         }
     }
+    std::chrono::steady_clock::time_point SATSolvingEnd = std::chrono::steady_clock::now();
+    long long SATSolvingElapsed = std::chrono::duration_cast<std::chrono::seconds>(SATSolvingStart - SATSolvingEnd).count();
+    std::cout << "SAT solving time: " << SATSolvingElapsed << "s" << std::endl;
 
     // TODO: 释放内存空间
     delete solver;
@@ -297,7 +324,7 @@ void aigToSAT() {
 
     }
 
-    std::string filename = "cnfs/xor1.txt";
+    std::string filename = "cnfs/adder.txt";
 //    FILE* f = fopen(filename.c_str(), "w+");
 //    if (f == nullptr) {
 //        printf("");
@@ -497,7 +524,7 @@ double getPathSATNum(std::vector<unsigned int> path) {
                 break;
             }
             else {
-                std::cout << "ERROR: Abnormal SAT solve!" << std::endl;
+                std::cerr << "ERROR: Abnormal SAT solve!" << std::endl;
                 exit(ERROR_CODE_ABNORMAL_SAT_SOLVE);
             }
         }

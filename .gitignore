@@ -1,5 +1,8 @@
 .idea/
 aigers/
 cnfs/
+logs/
+build/
+bin/
 src/cmake-build-debug/
 src/sources/*.txt
