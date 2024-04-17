@@ -63,18 +63,18 @@ int readAagFile(const char *aagFile) {
 
     for (unsigned int start = inputNums; start < (inputNums + andNums); start++) {
         for (unsigned int end = 0; end < outputNums; end++) {
-            std::cout << start << " -> " << end << std::endl;
+            std::cout << start << " ==========> " << end << std::endl;
             int pathNums = pathMap[start][end].pathNums;
             std::vector<unsigned int> path;
-            int SATSum = 0;
-            int SATNum = 0;
+            double SATSum = 0;
+            double SATNum = 0;
             for (int i = 0; i < pathNums; i++) {
                 path = pathMap[start][end].pathToOutputs.at(i).path;
-                std::cout << "Path: ";
-                printAigerPath(path);    // 打印路径
+//                std::cout << "Path: ";
+//                printAigerPath(path);    // 打印路径
 
                 if (path.size() <= 1) {
-                    SATNum = (int) pow(2, inputNums);
+                    SATNum = pow(2, inputNums);
                 }
                 else {
                     refreshSolver();
@@ -446,8 +446,8 @@ int getAndGateSATNum(unsigned int andLit) {
  * @param path
  * @return
  */
-int getPathSATNum(std::vector<unsigned int> path) {
-    int res = 0;
+double getPathSATNum(std::vector<unsigned int> path) {
+    double res = 0;
 
     int slow = 0;
     int fast = 1;
@@ -482,18 +482,26 @@ int getPathSATNum(std::vector<unsigned int> path) {
             if (value == Minisat::lbool((uint8_t)0)) {
                 // TRUE ~P
                 tmpLits.push(varToLit(import(aigState, curInput->lit + 1)));
-                std::cout << "1  ";
+//                std::cout << "1  ";
             }
             else if (value == Minisat::lbool((uint8_t)1)) {
                 // FALSE P
                 tmpLits.push(varToLit(import(aigState, curInput->lit)));
-                std::cout << "0  ";
+//                std::cout << "0  ";
+            }
+            else if (value == Minisat::lbool((uint8_t)2)) {
+                std::cout << "WARNING: Unknown SAT solve!" << std::endl;
+
+                // 求出未知解, 需跳出 SAT 求解器
+                sat = false;
+                break;
             }
             else {
-                printf("Warning: unknown solve!");
+                std::cout << "ERROR: Abnormal SAT solve!" << std::endl;
+                exit(ERROR_CODE_ABNORMAL_SAT_SOLVE);
             }
         }
-        std::cout << std::endl;
+//        std::cout << std::endl;
 
         solver->addClause(tmpLits);
         sat = solver->solve();

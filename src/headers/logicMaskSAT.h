@@ -9,7 +9,7 @@
 #include <stack>
 #include <algorithm>
 
-#include "../headers/definitions.h"
+#include "../headers/constants.h"
 #include "../headers/tools.h"
 #include "../../minisat/core/Solver.h"
 
@@ -140,7 +140,7 @@ void ternary(int p, int q, int r, bool flag);
  */
 void andGateConstraint(int lhs, int rhs0, int rhs1, bool flag);
 
-int getPathSATNum(std::vector<unsigned int> path);
+double getPathSATNum(std::vector<unsigned int> path);
 
 void buildLit2And();
 
