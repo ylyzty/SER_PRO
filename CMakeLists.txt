@@ -4,14 +4,15 @@ cmake_minimum_required(VERSION 3.27)
 # 项目信息
 project(SER_PRO)
 set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ../bin)
 
 
 set(DIR_SRCS
-        sources/tools.cpp
-        sources/aiger.c
-        ../minisat/core/Solver.cc
-        sources/logicMaskSAT.cpp
-        sources/main.cpp
+        src/sources/tools.cpp
+        src/sources/aiger.c
+        minisat/core/Solver.cc
+        src/sources/logicMaskSAT.cpp
+        src/sources/main.cpp
 )
 
 

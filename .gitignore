@@ -4,5 +4,6 @@ cnfs/
 logs/
 build/
 bin/
+cmake-build-debug/
 src/cmake-build-debug/
 src/sources/*.txt

@@ -324,7 +324,7 @@ void aigToSAT() {
 
     }
 
-    std::string filename = "cnfs/adder.txt";
+//    std::string filename = "cnfs/adder.txt";
 //    FILE* f = fopen(filename.c_str(), "w+");
 //    if (f == nullptr) {
 //        printf("");
@@ -332,7 +332,7 @@ void aigToSAT() {
 //
 //    fprintf(f, "write to txt");
 //    fclose(f);
-    solver->toDimacs(filename.c_str());
+//    solver->toDimacs(filename.c_str());
 }
 
 void refreshSolver() {
@@ -466,6 +466,8 @@ void andGateConstraint(int lhs, int rhs0, int rhs1, bool flag) {
 int getAndGateSATNum(unsigned int andLit) {
     std::vector<unsigned int>* affectedOutputLitVector;
     getAffectedOutputs(andLit, affectedOutputLitVector);
+
+    return 0;
 }
 
 /**
