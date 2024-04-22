@@ -1,6 +1,5 @@
 #include <iostream>
 #include "../headers/logicMaskSAT.h"
-#include "../../minisat/core/Solver.h"
 
 extern aiger* circuitModel;
 

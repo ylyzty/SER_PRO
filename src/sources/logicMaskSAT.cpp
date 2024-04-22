@@ -68,32 +68,45 @@ int readAagFile(const char *aagFile) {
     pathMap = new AigerPathToOutputs*[inputNums + andNums];
     for (int i = 0; i < inputNums + andNums; i++) {
         pathMap[i] = new AigerPathToOutputs[outputNums];
+        for (int j = 0; j < outputNums; j++) {
+            pathMap[i][j].pathNums = 0;    // 设置初始值
+        }
     }
     createPathMap(pathMap);
     std::chrono::steady_clock::time_point createPathMapEnd = std::chrono::steady_clock::now();
     long long createPathMapElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(createPathMapEnd - createPathMapStart).count();
     std::cout << "Create PathMap time: " << createPathMapElapsed << "ms" << std::endl;
 
+    aigToSATInit();
     // 4. 统计初始化Solver时间
     std::chrono::steady_clock::time_point initSATSolverStart = std::chrono::steady_clock::now();
-    aigToSATInit();
     aigToSAT();
     std::chrono::steady_clock::time_point initSATSolverEnd = std::chrono::steady_clock::now();
-    long long initSATSolverElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(initSATSolverStart - initSATSolverEnd).count();
-    std::cout << "Init SAT Solver time: " << createPathMapElapsed << "ms" << std::endl;
+    long long initSATSolverElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(initSATSolverEnd - initSATSolverStart).count();
+    std::cout << "Init SAT Solver time: " << initSATSolverElapsed << "ms" << std::endl;
 
-    // 5. 统计 SAT 求解时间
+    // 5. 统计刷新Solver时间
+    std::chrono::steady_clock::time_point refreshSolverStart = std::chrono::steady_clock::now();
+    refreshSolver();
+    std::chrono::steady_clock::time_point refreshSolverEnd = std::chrono::steady_clock::now();
+    long long refreshSolverElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(refreshSolverEnd - refreshSolverStart).count();
+    std::cout << "Refresh SAT Solver time: " << refreshSolverElapsed << "ms" << std::endl;
+
+    // 6. 统计 SAT 求解时间
     std::chrono::steady_clock::time_point SATSolvingStart = std::chrono::steady_clock::now();
     for (unsigned int start = inputNums; start < (inputNums + andNums); start++) {
         for (unsigned int end = 0; end < outputNums; end++) {
             int pathNums = pathMap[start][end].pathNums;
-            std::cout << start << " ==========> " << end << ": " << pathNums << std::endl;
+            std::cout << "\n" << start << " ==========> " << end << ": " << pathNums << std::endl;
 
             std::vector<unsigned int> path;
             double SATSum = 0;
             double SATNum = 0;
+            int pathNo = 0;
             for (int i = 0; i < pathNums; i++) {
                 path = pathMap[start][end].pathToOutputs.at(i).path;
+                pathNo += 1;
+                std::cout << "Path number: " << pathNo << "\tPath length: " << path.size() << std::endl;
 //                std::cout << "Path: ";
 //                printAigerPath(path);    // 打印路径
 
@@ -105,14 +118,14 @@ int readAagFile(const char *aagFile) {
                     SATNum = getPathSATNum(path);
                 }
 
-                std::cout << "Path SAT Num: " << SATNum << std::endl;
+                std::cout << "Path SAT Num: " << SATNum << "\n" << std::endl;
                 SATSum += SATNum;
             }
             std::cout << "All Path SAT Num: " << SATSum << std::endl;
         }
     }
     std::chrono::steady_clock::time_point SATSolvingEnd = std::chrono::steady_clock::now();
-    long long SATSolvingElapsed = std::chrono::duration_cast<std::chrono::seconds>(SATSolvingStart - SATSolvingEnd).count();
+    long long SATSolvingElapsed = std::chrono::duration_cast<std::chrono::seconds>(SATSolvingEnd - SATSolvingStart).count();
     std::cout << "SAT solving time: " << SATSolvingElapsed << "s" << std::endl;
 
     // TODO: 释放内存空间
@@ -533,7 +546,12 @@ double getPathSATNum(std::vector<unsigned int> path) {
 //        std::cout << std::endl;
 
         solver->addClause(tmpLits);
+
+        std::chrono::steady_clock::time_point solveStart = std::chrono::steady_clock::now();
         sat = solver->solve();
+        std::chrono::steady_clock::time_point solveEnd = std::chrono::steady_clock::now();
+        long long solveElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(solveEnd - solveStart).count();
+        std::cout << "Solve time: " << solveElapsed << "ms" << std::endl;
     }
 
     return res;
