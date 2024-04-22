@@ -31,6 +31,9 @@ unsigned int firstAndIdx;
 
 int varNums;
 
+/* ========== MAPS ========== */
+std::map<unsigned int, int> outputLitToIndex;
+
 /* ========== FUNCTIONS ========== */
 
 /**
@@ -54,6 +57,9 @@ int readAagFile(const char *aagFile) {
 
     // 检验 aag 文件是否是 紧凑且无逆序的
     checkAigerModel(circuitModel);
+    for (int i = 0; i < outputNums; i++) {
+        outputLitToIndex[toEven((circuitModel->outputs + i)->lit)] = i;
+    }
 
     // 2. 统计Fanouts创建时间
     std::chrono::steady_clock::time_point createFanoutStart = std::chrono::steady_clock::now();
@@ -94,35 +100,48 @@ int readAagFile(const char *aagFile) {
 
     // 6. 统计 SAT 求解时间
     std::chrono::steady_clock::time_point SATSolvingStart = std::chrono::steady_clock::now();
-    for (unsigned int start = inputNums; start < (inputNums + andNums); start++) {
-        for (unsigned int end = 0; end < outputNums; end++) {
-            int pathNums = pathMap[start][end].pathNums;
-            std::cout << "\n" << start << " ==========> " << end << ": " << pathNums << std::endl;
+    for (unsigned int startIndex = inputNums; startIndex < (inputNums + andNums); startIndex++) {
+        unsigned int startLit = (startIndex + 1) * 2;
+        auto* affectedOutputs = new std::vector<unsigned int>();
+        getAndLitAffectedOutputs(startLit, affectedOutputs);
+        sort(affectedOutputs->begin(), affectedOutputs->end());
+
+        for (unsigned int endLit : *affectedOutputs) {
+            int endIndex = outputLitToIndex.at(toEven(endLit));
+            int pathNums = pathMap[startIndex][endIndex].pathNums;
+            std::cout << "\n" << startLit << " ==========> " << endLit << ": " << pathNums << std::endl;
+//            std::cout << "\n" << startIndex << " ==========> " << endIndex << ": " << pathNums << std::endl;
 
             std::vector<unsigned int> path;
             double SATSum = 0;
             double SATNum = 0;
             int pathNo = 0;
             for (int i = 0; i < pathNums; i++) {
-                path = pathMap[start][end].pathToOutputs.at(i).path;
+                path = pathMap[startIndex][endIndex].pathToOutputs.at(i).path;
                 pathNo += 1;
-                std::cout << "Path number: " << pathNo << "\tPath length: " << path.size() << std::endl;
-//                std::cout << "Path: ";
-//                printAigerPath(path);    // 打印路径
+                std::cout << "Path No." << pathNo << "\tPath length: " << path.size() << std::endl;
 
-                if (path.size() <= 1) {
-                    SATNum = pow(2, inputNums);
-                }
-                else {
-                    refreshSolver();
-                    SATNum = getPathSATNum(path);
-                }
+                // 计算路径关联的输入个数
+                auto* set = new std::set<unsigned int>();
+                int associatedInputCnt = getPathAssociatedInputs(path, set);
+                std::cout << "Associated input counts " << associatedInputCnt << " / " << inputNums << std::endl;
+                delete set;
 
-                std::cout << "Path SAT Num: " << SATNum << "\n" << std::endl;
-                SATSum += SATNum;
+//                if (path.size() <= 1) {
+//                    SATNum = pow(2, inputNums);
+//                }
+//                else {
+//                    refreshSolver();
+//                    SATNum = getPathSATNum(path);
+//                }
+//
+//                std::cout << "Path SAT Num: " << SATNum << "\n" << std::endl;
+//                SATSum += SATNum;
             }
             std::cout << "All Path SAT Num: " << SATSum << std::endl;
         }
+
+        delete affectedOutputs;
     }
     std::chrono::steady_clock::time_point SATSolvingEnd = std::chrono::steady_clock::now();
     long long SATSolvingElapsed = std::chrono::duration_cast<std::chrono::seconds>(SATSolvingEnd - SATSolvingStart).count();
@@ -196,14 +215,20 @@ void createFanout() {
 
 /**
  * 计算每个 And-Gate 能够影响到的输出
+ * @param andLit
+ * @param affectedOutputLitVector
+ * @return
  */
-int getAffectedOutputs(unsigned int andLit, std::vector<unsigned int>* affectedOutputLitVector) {
+int getAndLitAffectedOutputs(unsigned int andLit, std::vector<unsigned int>* affectedOutputLitVector) {
     std::queue<unsigned int> queue;
     std::set<unsigned int> AllOutputLitSet;
     std::set<unsigned int> addedOutputLitSet;
 
     int affectedOutputCnt = 0;
     int tmpVisited[inputNums + andNums];
+    for (int i = 0; i < (inputNums + andNums); i++) {
+        tmpVisited[i] = 0;
+    }
 
     for (int i = 0; i < outputNums; i++) {
         AllOutputLitSet.insert(toEven((circuitModel->outputs + i)->lit));
@@ -228,7 +253,7 @@ int getAffectedOutputs(unsigned int andLit, std::vector<unsigned int>* affectedO
             continue;
         } else {
             std::vector<int> fanouts = fanoutGraph[toEven(tmpV) / 2 - 1].fanouts;
-            for (int fanout: fanouts) {
+            for (int fanout : fanouts) {
                 if (tmpVisited[toEven(fanout) / 2 - 1] == 0) {
                     queue.push(fanout);
                     tmpVisited[toEven(fanout) / 2 - 1] = 1;
@@ -240,6 +265,83 @@ int getAffectedOutputs(unsigned int andLit, std::vector<unsigned int>* affectedO
     }
 
     return affectedOutputCnt;
+}
+
+
+/**
+ * 计算每个 And-Gate 被影响的输入
+ * @param andLit
+ * @param associatedInputLitSet
+ * @return
+ */
+int getAndLitAssociatedInputs(unsigned int andLit, std::set<unsigned int> *associatedInputLitSet) {
+    std::queue<unsigned int> queue;
+    std::set<unsigned int> addedAndLitSet;
+
+    int associatedInputCnt = 0;
+    int tmpVisited[inputNums + andNums];
+    // 局部数组的默认初始化为随机值, 需要手动初始化
+    for (int i = 0; i < (inputNums + andNums); i++) {
+        tmpVisited[i] = 0;
+    }
+
+    queue.push(andLit);
+    while (!queue.empty()) {
+        unsigned int tmpV = queue.front();
+
+        if (tmpV < 2 * (inputNums + 1)) {
+            // 到达输入节点，将其添加到 关联输入集合 中
+            associatedInputLitSet->insert(toEven(tmpV));
+            associatedInputCnt += 1;
+        }
+        else {
+            aiger_and *curAnd = circuitModel->ands + (toEven(tmpV) / 2 - inputNums - 1);
+            if (tmpVisited[toEven(curAnd->rhs0) / 2 - 1] == 0) {
+                queue.push(curAnd->rhs0);
+                tmpVisited[toEven(curAnd->rhs0) / 2 - 1] = 1;
+            }
+
+            if (tmpVisited[toEven(curAnd->rhs1) / 2 - 1] == 0) {
+                queue.push(curAnd->rhs1);
+                tmpVisited[toEven(curAnd->rhs1) / 2 - 1] = 1;
+            }
+        }
+
+        queue.pop();
+    }
+
+    return associatedInputCnt;
+}
+
+
+/**
+ * 计算一条路径关联到的输入个数
+ * @param path
+ * @param associatedInputLitSet
+ * @return
+ */
+int getPathAssociatedInputs(std::vector<unsigned int> path, std::set<unsigned int> *associatedInputLitSet) {
+    if (path.size() <= 1) {
+        return 0;
+    }
+    
+    for (int i = 1; i < path.size(); i++) {
+        unsigned int andLit = path.at(i);
+        unsigned int rhs = path.at(i - 1);
+        aiger_and *curAnd = circuitModel->ands + (toEven(andLit) / 2 - inputNums - 1);
+        if (curAnd->rhs0 == rhs) {
+            getAndLitAssociatedInputs(curAnd->rhs1, associatedInputLitSet);
+        }
+        else if (curAnd->rhs1 == rhs) {
+            getAndLitAssociatedInputs(curAnd->rhs0, associatedInputLitSet);
+        }
+        else {
+            std::cerr << "Error: Abnormal RHS!" << std::endl;
+            exit(ERROR_CODE_ABNORMAL_RHS_LIT);
+        }
+    }
+
+    return (int) associatedInputLitSet->size();
 }
 
 
@@ -478,7 +580,7 @@ void andGateConstraint(int lhs, int rhs0, int rhs1, bool flag) {
 
 int getAndGateSATNum(unsigned int andLit) {
     std::vector<unsigned int>* affectedOutputLitVector;
-    getAffectedOutputs(andLit, affectedOutputLitVector);
+    getAndLitAffectedOutputs(andLit, affectedOutputLitVector);
 
     return 0;
 }
@@ -543,7 +645,11 @@ double getPathSATNum(std::vector<unsigned int> path) {
                 exit(ERROR_CODE_ABNORMAL_SAT_SOLVE);
             }
         }
-//        std::cout << std::endl;
+
+        // 求出未知解，跳出 while 循环，不继续求解
+        if (!sat) {
+            break;
+        }
 
         solver->addClause(tmpLits);
 

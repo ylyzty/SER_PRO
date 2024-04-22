@@ -7,6 +7,7 @@
 
 #include <vector>
 #include <stack>
+#include <set>
 #include <algorithm>
 
 #include "../headers/constants.h"
@@ -63,8 +64,27 @@ void createFanout();
 
 /**
  * 计算每个 And-Gate 能够影响到的输出
+ * @param andLit
+ * @param affectedOutputLitVector
+ * @return
  */
-int getAffectedOutputs(unsigned int andLit, std::vector<unsigned int> *affectedOutputLitVector);
+int getAndLitAffectedOutputs(unsigned int andLit, std::vector<unsigned int> *affectedOutputLitVector);
+
+/**
+ * 计算每个 And-Gate 关联到的输入个数
+ * @param andLit
+ * @param associatedInputLitSet
+ * @return
+ */
+int getAndLitAssociatedInputs(unsigned int andLit, std::set<unsigned int> *associatedInputLitSet);
+
+/**
+ * 计算一条路径关联到的输入个数
+ * @param path
+ * @param associatedInputLitSet
+ * @return
+ */
+int getPathAssociatedInputs(std::vector<unsigned int> path, std::set<unsigned int> *associatedInputLitSet);
 
 /**
  * 从输出开始寻找到输入的所有路径, 构建 pathmap
