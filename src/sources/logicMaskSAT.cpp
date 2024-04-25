@@ -122,21 +122,23 @@ int readAagFile(const char *aagFile) {
                 std::cout << "Path No." << pathNo << "\tPath length: " << path.size() << std::endl;
 
                 // 计算路径关联的输入个数
-                auto* set = new std::set<unsigned int>();
-                int associatedInputCnt = getPathAssociatedInputs(path, set);
+                auto* associatedInputSet = new std::set<unsigned int>();
+                int associatedInputCnt = getPathAssociatedInputs(path, associatedInputSet);
                 std::cout << "Associated input counts " << associatedInputCnt << " / " << inputNums << std::endl;
-                delete set;
 
-//                if (path.size() <= 1) {
-//                    SATNum = pow(2, inputNums);
-//                }
-//                else {
-//                    refreshSolver();
-//                    SATNum = getPathSATNum(path);
-//                }
-//
-//                std::cout << "Path SAT Num: " << SATNum << "\n" << std::endl;
-//                SATSum += SATNum;
+                if (path.size() <= 1) {
+                    SATNum = 1;
+                }
+                else {
+                    refreshSolver();
+                    SATNum = getPathSATNum(path, associatedInputSet);
+                }
+
+                delete associatedInputSet;
+
+                SATNum = SATNum * pow(2, inputNums - associatedInputCnt);
+                std::cout << "Path SAT Num: " << SATNum << "\n" << std::endl;
+                SATSum += SATNum;
             }
             std::cout << "All Path SAT Num: " << SATSum << std::endl;
         }
@@ -144,8 +146,8 @@ int readAagFile(const char *aagFile) {
         delete affectedOutputs;
     }
     std::chrono::steady_clock::time_point SATSolvingEnd = std::chrono::steady_clock::now();
-    long long SATSolvingElapsed = std::chrono::duration_cast<std::chrono::seconds>(SATSolvingEnd - SATSolvingStart).count();
-    std::cout << "SAT solving time: " << SATSolvingElapsed << "s" << std::endl;
+    long long SATSolvingElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(SATSolvingEnd - SATSolvingStart).count();
+    std::cout << "SAT solving time: " << SATSolvingElapsed << "ms" << std::endl;
 
     // TODO: 释放内存空间
     delete solver;
@@ -270,6 +272,7 @@ int getAndLitAffectedOutputs(unsigned int andLit, std::vector<unsigned int>* aff
 
 /**
  * 计算每个 And-Gate 被影响的输入
+ * 添加的是输入的 Lit
  * @param andLit
  * @param associatedInputLitSet
  * @return
@@ -590,7 +593,7 @@ int getAndGateSATNum(unsigned int andLit) {
  * @param path
  * @return
  */
-double getPathSATNum(std::vector<unsigned int> path) {
+double getPathSATNum(std::vector<unsigned int> path, std::set<unsigned int>* inputSet) {
     double res = 0;
 
     int slow = 0;
@@ -618,22 +621,22 @@ double getPathSATNum(std::vector<unsigned int> path) {
     while (sat) {
         res += 1;
         tmpLits.clear();
-        for (int i = 0; i < inputNums; i++) {
-            aiger_symbol *curInput = circuitModel->inputs + i;
+        for (unsigned int inputLit : *inputSet) {
+            aiger_symbol *curInput = circuitModel->inputs + (inputLit / 2 - 1);
             Minisat::Lit curLit = varToLit(import(aigState, curInput->lit));
             Minisat::lbool value = solver->modelValue(curLit);
 
-            if (value == Minisat::lbool((uint8_t)0)) {
+            if (value == Minisat::lbool((uint8_t) 0)) {
                 // TRUE ~P
                 tmpLits.push(varToLit(import(aigState, curInput->lit + 1)));
 //                std::cout << "1  ";
             }
-            else if (value == Minisat::lbool((uint8_t)1)) {
+            else if (value == Minisat::lbool((uint8_t) 1)) {
                 // FALSE P
                 tmpLits.push(varToLit(import(aigState, curInput->lit)));
 //                std::cout << "0  ";
             }
-            else if (value == Minisat::lbool((uint8_t)2)) {
+            else if (value == Minisat::lbool((uint8_t) 2)) {
                 std::cout << "WARNING: Unknown SAT solve!" << std::endl;
 
                 // 求出未知解, 需跳出 SAT 求解器
@@ -653,11 +656,11 @@ double getPathSATNum(std::vector<unsigned int> path) {
 
         solver->addClause(tmpLits);
 
-        std::chrono::steady_clock::time_point solveStart = std::chrono::steady_clock::now();
+//        std::chrono::steady_clock::time_point solveStart = std::chrono::steady_clock::now();
         sat = solver->solve();
-        std::chrono::steady_clock::time_point solveEnd = std::chrono::steady_clock::now();
-        long long solveElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(solveEnd - solveStart).count();
-        std::cout << "Solve time: " << solveElapsed << "ms" << std::endl;
+//        std::chrono::steady_clock::time_point solveEnd = std::chrono::steady_clock::now();
+//        long long solveElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(solveEnd - solveStart).count();
+//        std::cout << "Solve time: " << solveElapsed << "ms" << std::endl;
     }
 
     return res;

@@ -160,7 +160,7 @@ void ternary(int p, int q, int r, bool flag);
  */
 void andGateConstraint(int lhs, int rhs0, int rhs1, bool flag);
 
-double getPathSATNum(std::vector<unsigned int> path);
+double getPathSATNum(std::vector<unsigned int> path, std::set<unsigned int>* inputSet);
 
 void buildLit2And();
 
