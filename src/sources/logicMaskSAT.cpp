@@ -2,9 +2,7 @@
  * Created by zyuli on 2024/3/21 
  *******************************************/
 #include <iostream>
-#include <cstdio>
 #include <cstdlib>
-#include <cstring>
 #include <cmath>
 #include <algorithm>
 #include <queue>
@@ -368,13 +366,17 @@ void createPathMap(AigerPathToOutputs **pathMap) {
         assistStack.push(tmpVec);
 
         while (!mainStack.empty()) {
-            AigerPath tmpPath;
-            tmpPath.path = reverseVectorWithReturns(mainStack);
-            pathMap[toEven(mainStack.back()) / 2 - 1][j].pathToOutputs.push_back(tmpPath);
+//            AigerPath tmpPath;
+//            tmpPath.path = reverseVectorWithReturns(mainStack);
+//            pathMap[toEven(mainStack.back()) / 2 - 1][j].pathToOutputs.push_back(tmpPath);
             pathMap[toEven(mainStack.back()) / 2 - 1][j].pathNums += 1;
 
             // 取队尾元素
             if (toEven(mainStack.back()) <= inputNums * 2) {
+                // 添加从输入到输出的路径
+                AigerPath tmpPath;
+                tmpPath.path = reverseVectorWithReturns(mainStack);
+                pathMap[toEven(mainStack.back()) / 2 - 1][j].pathToOutputs.push_back(tmpPath);
                 // 更新辅栈
                 while ((!mainStack.empty()) && (!assistStack.empty()) && assistStack.top().empty()) {
                     mainStack.pop_back();
@@ -629,12 +631,10 @@ double getPathSATNum(std::vector<unsigned int> path, std::set<unsigned int>* inp
             if (value == Minisat::lbool((uint8_t) 0)) {
                 // TRUE ~P
                 tmpLits.push(varToLit(import(aigState, curInput->lit + 1)));
-//                std::cout << "1  ";
             }
             else if (value == Minisat::lbool((uint8_t) 1)) {
                 // FALSE P
                 tmpLits.push(varToLit(import(aigState, curInput->lit)));
-//                std::cout << "0  ";
             }
             else if (value == Minisat::lbool((uint8_t) 2)) {
                 std::cout << "WARNING: Unknown SAT solve!" << std::endl;
@@ -675,7 +675,7 @@ void checkAigerModel(aiger* model) {
 void checkAigerInputs(aiger* model) {
     for (int i = 1; i < inputNums; i++) {
         if ((model->inputs + i)->lit - (model->inputs + i - 1)->lit != 2) {
-            std::cerr << "Error: Inputs are not compact!" << std::endl;
+            std::cerr << "Error: Aag file with inputs not compact!" << std::endl;
             exit(ERROR_CODE_UNCOMPACT);
         }
     }
@@ -684,13 +684,23 @@ void checkAigerInputs(aiger* model) {
 void checkAigerAndGates(aiger* model) {
     for (int i = 1; i < andNums; i++) {
         if ((model->ands + i)->lhs < (model->ands + i - 1)->lhs) {
-            std::cerr << "Error: And gate reverse order!" << std::endl;
+            std::cerr << "Error: Aag file with and gate reverse order!" << std::endl;
             exit(ERROR_CODE_REVERSE_ORDER);
         }
 
         if ((model->ands + i)->lhs - (model->ands + i - 1)->lhs != 2) {
-            std::cerr << "Error: And gates are not compact!" << std::endl;
+            std::cerr << "Error: Aag file with and gates not compact!" << std::endl;
             exit(ERROR_CODE_UNCOMPACT);
+        }
+    }
+}
+
+void checkAigerOutputs(aiger* model) {
+    for (int i = 1; i <= outputNums; i++) {
+        // 输出下标小于输入，不合理
+        if ((model->outputs + (i - 1))->lit < 2 * (inputNums + 1)) {
+            std::cerr << "Error: Aag file with abnormal output lit!" << std::endl;
+            exit(ERROR_CODE_ABNORMAL_OUTPUT_LIT);
         }
     }
 }
