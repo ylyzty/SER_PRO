@@ -98,54 +98,54 @@ int readAagFile(const char *aagFile) {
     std::cout << "Refresh SAT Solver time: " << refreshSolverElapsed << "ms" << std::endl;
 
     // 6. 统计 SAT 求解时间
-//    std::chrono::steady_clock::time_point SATSolvingStart = std::chrono::steady_clock::now();
-//    for (unsigned int startIndex = inputNums; startIndex < (inputNums + andNums); startIndex++) {
-//        unsigned int startLit = (startIndex + 1) * 2;
-//        auto* affectedOutputs = new std::vector<unsigned int>();
-//        getAndLitAffectedOutputs(startLit, affectedOutputs);
-//        sort(affectedOutputs->begin(), affectedOutputs->end());
-//
-//        for (unsigned int endLit : *affectedOutputs) {
-//            int endIndex = outputLitToIndex.at(toEven(endLit));
-//            int pathNums = pathMap[startIndex][endIndex].pathNums;
-//            std::cout << "\n" << startLit << " ==========> " << endLit << ": " << pathNums << std::endl;
-//
-//            std::vector<unsigned int> path;
-//            double SATSum = 0;
-//            double SATNum = 0;
-//            int pathNo = 0;
-//            for (int i = 0; i < pathNums; i++) {
-//                path = pathMap[startIndex][endIndex].pathToOutputs.at(i).path;
-//                pathNo += 1;
-//                std::cout << "Path No." << pathNo << "\tPath length: " << path.size() << std::endl;
-//
-//                // 计算路径关联的输入个数
-//                auto* associatedInputSet = new std::set<unsigned int>();
-//                int associatedInputCnt = getPathAssociatedInputs(path, associatedInputSet);
-//                std::cout << "Associated input counts " << associatedInputCnt << " / " << inputNums << std::endl;
-//
-//                if (path.size() <= 1) {
-//                    SATNum = 1;
-//                }
-//                else {
-//                    refreshSolver();
-//                    SATNum = getPathSATNum(path, associatedInputSet);
-//                }
-//
-//                delete associatedInputSet;
-//
-//                SATNum = SATNum * pow(2, inputNums - associatedInputCnt);
-//                std::cout << "Path SAT Num: " << SATNum << "\n" << std::endl;
-//                SATSum += SATNum;
-//            }
-//            std::cout << "All Path SAT Num: " << SATSum << std::endl;
-//        }
-//
-//        delete affectedOutputs;
-//    }
-//    std::chrono::steady_clock::time_point SATSolvingEnd = std::chrono::steady_clock::now();
-//    long long SATSolvingElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(SATSolvingEnd - SATSolvingStart).count();
-//    std::cout << "SAT solving time: " << SATSolvingElapsed << "ms" << std::endl;
+    std::chrono::steady_clock::time_point SATSolvingStart = std::chrono::steady_clock::now();
+    for (unsigned int startIndex = inputNums; startIndex < (inputNums + andNums); startIndex++) {
+        unsigned int startLit = (startIndex + 1) * 2;
+        auto* affectedOutputs = new std::vector<unsigned int>();
+        getAndLitAffectedOutputs(startLit, affectedOutputs);
+        sort(affectedOutputs->begin(), affectedOutputs->end());
+
+        for (unsigned int endLit : *affectedOutputs) {
+            int endIndex = outputLitToIndex.at(toEven(endLit));
+            int pathNums = pathMap[startIndex][endIndex].pathNums;
+            std::cout << "\n" << startLit << " ==========> " << endLit << ": " << pathNums << std::endl;
+
+            std::vector<unsigned int> path;
+            double SATSum = 0;
+            double SATNum = 0;
+            int pathNo = 0;
+            for (int i = 0; i < pathNums; i++) {
+                path = pathMap[startIndex][endIndex].pathToOutputs.at(i).path;
+                pathNo += 1;
+                std::cout << "Path No." << pathNo << "\tPath length: " << path.size() << std::endl;
+
+                // 计算路径关联的输入个数
+                auto* associatedInputSet = new std::set<unsigned int>();
+                int associatedInputCnt = getPathAssociatedInputs(path, associatedInputSet);
+                std::cout << "Associated input counts " << associatedInputCnt << " / " << inputNums << std::endl;
+
+                if (path.size() <= 1) {
+                    SATNum = 1;
+                }
+                else {
+                    refreshSolver();
+                    SATNum = getPathSATNum(path, associatedInputSet);
+                }
+
+                delete associatedInputSet;
+
+                SATNum = SATNum * pow(2, inputNums - associatedInputCnt);
+                std::cout << "Path SAT Num: " << SATNum << "\n" << std::endl;
+                SATSum += SATNum;
+            }
+            std::cout << "All Path SAT Num: " << SATSum << std::endl;
+        }
+
+        delete affectedOutputs;
+    }
+    std::chrono::steady_clock::time_point SATSolvingEnd = std::chrono::steady_clock::now();
+    long long SATSolvingElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(SATSolvingEnd - SATSolvingStart).count();
+    std::cout << "SAT solving time: " << SATSolvingElapsed << "ms" << std::endl;
 
     // TODO: 释放内存空间
     delete solver;
