@@ -41,7 +41,7 @@ typedef struct AigerPath {
 
 typedef struct AigerPathToOutputs {
     std::vector<AigerPath> pathToOutputs;
-    std::vector<int> solvedResult;
+//    std::vector<int> solvedResult;
     int pathNums;
 } AigerPathIn2Out;
 
@@ -56,6 +56,7 @@ int readAagFile(const char* filename);
 void checkAigerModel(aiger* model);
 void checkAigerInputs(aiger* model);
 void checkAigerAndGates(aiger* model);
+void checkAigerOutputs(aiger* model);
 
 /**
  * 根据 Aiger 类型的 CircuitModel, 建立电路的连接关系

@@ -2,9 +2,7 @@
  * Created by zyuli on 2024/3/21 
  *******************************************/
 #include <iostream>
-#include <cstdio>
 #include <cstdlib>
-#include <cstring>
 #include <cmath>
 #include <algorithm>
 #include <queue>
@@ -75,6 +73,7 @@ int readAagFile(const char *aagFile) {
     for (int i = 0; i < inputNums + andNums; i++) {
         pathMap[i] = new AigerPathToOutputs[outputNums];
         for (int j = 0; j < outputNums; j++) {
+            pathMap[i][j].pathToOutputs.clear();
             pathMap[i][j].pathNums = 0;    // 设置初始值
         }
     }
@@ -99,55 +98,54 @@ int readAagFile(const char *aagFile) {
     std::cout << "Refresh SAT Solver time: " << refreshSolverElapsed << "ms" << std::endl;
 
     // 6. 统计 SAT 求解时间
-    std::chrono::steady_clock::time_point SATSolvingStart = std::chrono::steady_clock::now();
-    for (unsigned int startIndex = inputNums; startIndex < (inputNums + andNums); startIndex++) {
-        unsigned int startLit = (startIndex + 1) * 2;
-        auto* affectedOutputs = new std::vector<unsigned int>();
-        getAndLitAffectedOutputs(startLit, affectedOutputs);
-        sort(affectedOutputs->begin(), affectedOutputs->end());
-
-        for (unsigned int endLit : *affectedOutputs) {
-            int endIndex = outputLitToIndex.at(toEven(endLit));
-            int pathNums = pathMap[startIndex][endIndex].pathNums;
-            std::cout << "\n" << startLit << " ==========> " << endLit << ": " << pathNums << std::endl;
-//            std::cout << "\n" << startIndex << " ==========> " << endIndex << ": " << pathNums << std::endl;
-
-            std::vector<unsigned int> path;
-            double SATSum = 0;
-            double SATNum = 0;
-            int pathNo = 0;
-            for (int i = 0; i < pathNums; i++) {
-                path = pathMap[startIndex][endIndex].pathToOutputs.at(i).path;
-                pathNo += 1;
-                std::cout << "Path No." << pathNo << "\tPath length: " << path.size() << std::endl;
-
-                // 计算路径关联的输入个数
-                auto* associatedInputSet = new std::set<unsigned int>();
-                int associatedInputCnt = getPathAssociatedInputs(path, associatedInputSet);
-                std::cout << "Associated input counts " << associatedInputCnt << " / " << inputNums << std::endl;
-
-                if (path.size() <= 1) {
-                    SATNum = 1;
-                }
-                else {
-                    refreshSolver();
-                    SATNum = getPathSATNum(path, associatedInputSet);
-                }
-
-                delete associatedInputSet;
-
-                SATNum = SATNum * pow(2, inputNums - associatedInputCnt);
-                std::cout << "Path SAT Num: " << SATNum << "\n" << std::endl;
-                SATSum += SATNum;
-            }
-            std::cout << "All Path SAT Num: " << SATSum << std::endl;
-        }
-
-        delete affectedOutputs;
-    }
-    std::chrono::steady_clock::time_point SATSolvingEnd = std::chrono::steady_clock::now();
-    long long SATSolvingElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(SATSolvingEnd - SATSolvingStart).count();
-    std::cout << "SAT solving time: " << SATSolvingElapsed << "ms" << std::endl;
+//    std::chrono::steady_clock::time_point SATSolvingStart = std::chrono::steady_clock::now();
+//    for (unsigned int startIndex = inputNums; startIndex < (inputNums + andNums); startIndex++) {
+//        unsigned int startLit = (startIndex + 1) * 2;
+//        auto* affectedOutputs = new std::vector<unsigned int>();
+//        getAndLitAffectedOutputs(startLit, affectedOutputs);
+//        sort(affectedOutputs->begin(), affectedOutputs->end());
+//
+//        for (unsigned int endLit : *affectedOutputs) {
+//            int endIndex = outputLitToIndex.at(toEven(endLit));
+//            int pathNums = pathMap[startIndex][endIndex].pathNums;
+//            std::cout << "\n" << startLit << " ==========> " << endLit << ": " << pathNums << std::endl;
+//
+//            std::vector<unsigned int> path;
+//            double SATSum = 0;
+//            double SATNum = 0;
+//            int pathNo = 0;
+//            for (int i = 0; i < pathNums; i++) {
+//                path = pathMap[startIndex][endIndex].pathToOutputs.at(i).path;
+//                pathNo += 1;
+//                std::cout << "Path No." << pathNo << "\tPath length: " << path.size() << std::endl;
+//
+//                // 计算路径关联的输入个数
+//                auto* associatedInputSet = new std::set<unsigned int>();
+//                int associatedInputCnt = getPathAssociatedInputs(path, associatedInputSet);
+//                std::cout << "Associated input counts " << associatedInputCnt << " / " << inputNums << std::endl;
+//
+//                if (path.size() <= 1) {
+//                    SATNum = 1;
+//                }
+//                else {
+//                    refreshSolver();
+//                    SATNum = getPathSATNum(path, associatedInputSet);
+//                }
+//
+//                delete associatedInputSet;
+//
+//                SATNum = SATNum * pow(2, inputNums - associatedInputCnt);
+//                std::cout << "Path SAT Num: " << SATNum << "\n" << std::endl;
+//                SATSum += SATNum;
+//            }
+//            std::cout << "All Path SAT Num: " << SATSum << std::endl;
+//        }
+//
+//        delete affectedOutputs;
+//    }
+//    std::chrono::steady_clock::time_point SATSolvingEnd = std::chrono::steady_clock::now();
+//    long long SATSolvingElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(SATSolvingEnd - SATSolvingStart).count();
+//    std::cout << "SAT solving time: " << SATSolvingElapsed << "ms" << std::endl;
 
     // TODO: 释放内存空间
     delete solver;
@@ -403,6 +401,7 @@ long long createPathMap(bool isStore) {
                 mainStack.push_back(next);
 
                 int index = (int) (toEven(next) / 2 - inputNums - 1);
+                tmpVec.clear();
                 if (index >= 0) {
                     tmpVec = {(circuitModel->ands + index)->rhs1, (circuitModel->ands + index)->rhs0};
                 }
@@ -646,12 +645,10 @@ double getPathSATNum(std::vector<unsigned int> path, std::set<unsigned int>* inp
             if (value == Minisat::lbool((uint8_t) 0)) {
                 // TRUE ~P
                 tmpLits.push(varToLit(import(aigState, curInput->lit + 1)));
-//                std::cout << "1  ";
             }
             else if (value == Minisat::lbool((uint8_t) 1)) {
                 // FALSE P
                 tmpLits.push(varToLit(import(aigState, curInput->lit)));
-//                std::cout << "0  ";
             }
             else if (value == Minisat::lbool((uint8_t) 2)) {
                 std::cout << "WARNING: Unknown SAT solve!" << std::endl;
@@ -687,12 +684,13 @@ double getPathSATNum(std::vector<unsigned int> path, std::set<unsigned int>* inp
 void checkAigerModel(aiger* model) {
     checkAigerInputs(model);
     checkAigerAndGates(model);
+    checkAigerOutputs(model);
 }
 
 void checkAigerInputs(aiger* model) {
     for (int i = 1; i < inputNums; i++) {
         if ((model->inputs + i)->lit - (model->inputs + i - 1)->lit != 2) {
-            std::cerr << "Error: Inputs are not compact!" << std::endl;
+            std::cerr << "Error: Aag file with inputs not compact!" << std::endl;
             exit(ERROR_CODE_UNCOMPACT);
         }
     }
@@ -701,13 +699,23 @@ void checkAigerInputs(aiger* model) {
 void checkAigerAndGates(aiger* model) {
     for (int i = 1; i < andNums; i++) {
         if ((model->ands + i)->lhs < (model->ands + i - 1)->lhs) {
-            std::cerr << "Error: And gate reverse order!" << std::endl;
+            std::cerr << "Error: Aag file with and gate reverse order!" << std::endl;
             exit(ERROR_CODE_REVERSE_ORDER);
         }
 
         if ((model->ands + i)->lhs - (model->ands + i - 1)->lhs != 2) {
-            std::cerr << "Error: And gates are not compact!" << std::endl;
+            std::cerr << "Error: Aag file with and gates not compact!" << std::endl;
             exit(ERROR_CODE_UNCOMPACT);
+        }
+    }
+}
+
+void checkAigerOutputs(aiger* model) {
+    for (int i = 1; i <= outputNums; i++) {
+        // 输出下标小于输入，不合理
+        if ((model->outputs + (i - 1))->lit < 2 * (inputNums + 1)) {
+            std::cerr << "Error: Aag file with abnormal output lit!" << std::endl;
+            exit(ERROR_CODE_ABNORMAL_OUTPUT_LIT);
         }
     }
 }
