@@ -73,6 +73,7 @@ int readAagFile(const char *aagFile) {
     for (int i = 0; i < inputNums + andNums; i++) {
         pathMap[i] = new AigerPathToOutputs[outputNums];
         for (int j = 0; j < outputNums; j++) {
+            pathMap[i][j].pathToOutputs.clear();
             pathMap[i][j].pathNums = 0;    // 设置初始值
         }
     }
@@ -97,55 +98,54 @@ int readAagFile(const char *aagFile) {
     std::cout << "Refresh SAT Solver time: " << refreshSolverElapsed << "ms" << std::endl;
 
     // 6. 统计 SAT 求解时间
-    std::chrono::steady_clock::time_point SATSolvingStart = std::chrono::steady_clock::now();
-    for (unsigned int startIndex = inputNums; startIndex < (inputNums + andNums); startIndex++) {
-        unsigned int startLit = (startIndex + 1) * 2;
-        auto* affectedOutputs = new std::vector<unsigned int>();
-        getAndLitAffectedOutputs(startLit, affectedOutputs);
-        sort(affectedOutputs->begin(), affectedOutputs->end());
-
-        for (unsigned int endLit : *affectedOutputs) {
-            int endIndex = outputLitToIndex.at(toEven(endLit));
-            int pathNums = pathMap[startIndex][endIndex].pathNums;
-            std::cout << "\n" << startLit << " ==========> " << endLit << ": " << pathNums << std::endl;
-//            std::cout << "\n" << startIndex << " ==========> " << endIndex << ": " << pathNums << std::endl;
-
-            std::vector<unsigned int> path;
-            double SATSum = 0;
-            double SATNum = 0;
-            int pathNo = 0;
-            for (int i = 0; i < pathNums; i++) {
-                path = pathMap[startIndex][endIndex].pathToOutputs.at(i).path;
-                pathNo += 1;
-                std::cout << "Path No." << pathNo << "\tPath length: " << path.size() << std::endl;
-
-                // 计算路径关联的输入个数
-                auto* associatedInputSet = new std::set<unsigned int>();
-                int associatedInputCnt = getPathAssociatedInputs(path, associatedInputSet);
-                std::cout << "Associated input counts " << associatedInputCnt << " / " << inputNums << std::endl;
-
-                if (path.size() <= 1) {
-                    SATNum = 1;
-                }
-                else {
-                    refreshSolver();
-                    SATNum = getPathSATNum(path, associatedInputSet);
-                }
-
-                delete associatedInputSet;
-
-                SATNum = SATNum * pow(2, inputNums - associatedInputCnt);
-                std::cout << "Path SAT Num: " << SATNum << "\n" << std::endl;
-                SATSum += SATNum;
-            }
-            std::cout << "All Path SAT Num: " << SATSum << std::endl;
-        }
-
-        delete affectedOutputs;
-    }
-    std::chrono::steady_clock::time_point SATSolvingEnd = std::chrono::steady_clock::now();
-    long long SATSolvingElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(SATSolvingEnd - SATSolvingStart).count();
-    std::cout << "SAT solving time: " << SATSolvingElapsed << "ms" << std::endl;
+//    std::chrono::steady_clock::time_point SATSolvingStart = std::chrono::steady_clock::now();
+//    for (unsigned int startIndex = inputNums; startIndex < (inputNums + andNums); startIndex++) {
+//        unsigned int startLit = (startIndex + 1) * 2;
+//        auto* affectedOutputs = new std::vector<unsigned int>();
+//        getAndLitAffectedOutputs(startLit, affectedOutputs);
+//        sort(affectedOutputs->begin(), affectedOutputs->end());
+//
+//        for (unsigned int endLit : *affectedOutputs) {
+//            int endIndex = outputLitToIndex.at(toEven(endLit));
+//            int pathNums = pathMap[startIndex][endIndex].pathNums;
+//            std::cout << "\n" << startLit << " ==========> " << endLit << ": " << pathNums << std::endl;
+//
+//            std::vector<unsigned int> path;
+//            double SATSum = 0;
+//            double SATNum = 0;
+//            int pathNo = 0;
+//            for (int i = 0; i < pathNums; i++) {
+//                path = pathMap[startIndex][endIndex].pathToOutputs.at(i).path;
+//                pathNo += 1;
+//                std::cout << "Path No." << pathNo << "\tPath length: " << path.size() << std::endl;
+//
+//                // 计算路径关联的输入个数
+//                auto* associatedInputSet = new std::set<unsigned int>();
+//                int associatedInputCnt = getPathAssociatedInputs(path, associatedInputSet);
+//                std::cout << "Associated input counts " << associatedInputCnt << " / " << inputNums << std::endl;
+//
+//                if (path.size() <= 1) {
+//                    SATNum = 1;
+//                }
+//                else {
+//                    refreshSolver();
+//                    SATNum = getPathSATNum(path, associatedInputSet);
+//                }
+//
+//                delete associatedInputSet;
+//
+//                SATNum = SATNum * pow(2, inputNums - associatedInputCnt);
+//                std::cout << "Path SAT Num: " << SATNum << "\n" << std::endl;
+//                SATSum += SATNum;
+//            }
+//            std::cout << "All Path SAT Num: " << SATSum << std::endl;
+//        }
+//
+//        delete affectedOutputs;
+//    }
+//    std::chrono::steady_clock::time_point SATSolvingEnd = std::chrono::steady_clock::now();
+//    long long SATSolvingElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(SATSolvingEnd - SATSolvingStart).count();
+//    std::cout << "SAT solving time: " << SATSolvingElapsed << "ms" << std::endl;
 
     // TODO: 释放内存空间
     delete solver;
@@ -351,32 +351,43 @@ int getPathAssociatedInputs(std::vector<unsigned int> path, std::set<unsigned in
  * @param pathMap
  */
 void createPathMap(AigerPathToOutputs **pathMap) {
+    std::vector<unsigned int> mainStack;
+    std::stack<std::vector<unsigned int>> assistStack;
+
+    std::vector<unsigned int> tmpVec;
+    AigerPath tmpPath;
+
+    int count = 0;
     for (int j = 0; j < outputNums; j++) {
-        std::vector<unsigned int> mainStack;
-        std::stack<std::vector<unsigned int>> assistStack;
+        // 清空主栈和辅栈
+        mainStack.clear();
+        while (!assistStack.empty()) {
+            assistStack.pop();
+        }
 
         unsigned int outputLit = (circuitModel->outputs + j)->lit;
+        std::cout << "OutputNo. " << j << " ==========> Output lit: " << outputLit << std::endl;
 
         // 初始化主栈
         mainStack.push_back(outputLit);
 
         // 初始化辅栈
         aiger_and *curAnd = circuitModel->ands + (toEven(outputLit) / 2 - inputNums - 1);
-        std::vector<unsigned int> tmpVec = {curAnd->rhs1, curAnd->rhs0};
+        tmpVec.clear();
+        tmpVec = {curAnd->rhs1, curAnd->rhs0};
         assistStack.push(tmpVec);
 
         while (!mainStack.empty()) {
-//            AigerPath tmpPath;
-//            tmpPath.path = reverseVectorWithReturns(mainStack);
-//            pathMap[toEven(mainStack.back()) / 2 - 1][j].pathToOutputs.push_back(tmpPath);
             pathMap[toEven(mainStack.back()) / 2 - 1][j].pathNums += 1;
 
             // 取队尾元素
             if (toEven(mainStack.back()) <= inputNums * 2) {
                 // 添加从输入到输出的路径
-                AigerPath tmpPath;
+                tmpPath.path.clear();
                 tmpPath.path = reverseVectorWithReturns(mainStack);
                 pathMap[toEven(mainStack.back()) / 2 - 1][j].pathToOutputs.push_back(tmpPath);
+                std::cout << "Current path count: " << ++count << std::endl;
+
                 // 更新辅栈
                 while ((!mainStack.empty()) && (!assistStack.empty()) && assistStack.top().empty()) {
                     mainStack.pop_back();
@@ -391,6 +402,7 @@ void createPathMap(AigerPathToOutputs **pathMap) {
                 mainStack.push_back(next);
 
                 int index = (int) (toEven(next) / 2 - inputNums - 1);
+                tmpVec.clear();
                 if (index >= 0) {
                     tmpVec = {(circuitModel->ands + index)->rhs1, (circuitModel->ands + index)->rhs0};
                 }
@@ -670,6 +682,7 @@ double getPathSATNum(std::vector<unsigned int> path, std::set<unsigned int>* inp
 void checkAigerModel(aiger* model) {
     checkAigerInputs(model);
     checkAigerAndGates(model);
+    checkAigerOutputs(model);
 }
 
 void checkAigerInputs(aiger* model) {

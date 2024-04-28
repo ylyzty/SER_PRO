@@ -41,7 +41,7 @@ typedef struct AigerPath {
 
 typedef struct AigerPathToOutputs {
     std::vector<AigerPath> pathToOutputs;
-    std::vector<int> solvedResult;
+//    std::vector<int> solvedResult;
     int pathNums;
 } AigerPathIn2Out;
 
