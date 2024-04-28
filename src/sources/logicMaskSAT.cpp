@@ -77,7 +77,7 @@ int readAagFile(const char *aagFile) {
             pathMap[i][j].pathNums = 0;    // 设置初始值
         }
     }
-    createPathMap(pathMap);
+    createPathMap(false);
     std::chrono::steady_clock::time_point createPathMapEnd = std::chrono::steady_clock::now();
     long long createPathMapElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(createPathMapEnd - createPathMapStart).count();
     std::cout << "Create PathMap time: " << createPathMapElapsed << "ms" << std::endl;
@@ -348,27 +348,25 @@ int getPathAssociatedInputs(std::vector<unsigned int> path, std::set<unsigned in
 
 /**
  * 从输出开始寻找到输入的所有路径, 构建 pathmap
- * @param pathMap
+ * @param isStore: true means to store path, while false means not.
  */
-void createPathMap(AigerPathToOutputs **pathMap) {
+long long createPathMap(bool isStore) {
     std::vector<unsigned int> mainStack;
     std::stack<std::vector<unsigned int>> assistStack;
 
-    std::vector<unsigned int> tmpVec;
     AigerPath tmpPath;
+    std::vector<unsigned int> tmpVec;
+    long long allPathCount = 0;
 
-    int count = 0;
     for (int j = 0; j < outputNums; j++) {
-        // 清空主栈和辅栈
+        // 格式化主栈和辅栈
         mainStack.clear();
         while (!assistStack.empty()) {
             assistStack.pop();
         }
 
-        unsigned int outputLit = (circuitModel->outputs + j)->lit;
-        std::cout << "OutputNo. " << j << " ==========> Output lit: " << outputLit << std::endl;
-
         // 初始化主栈
+        unsigned int outputLit = (circuitModel->outputs + j)->lit;
         mainStack.push_back(outputLit);
 
         // 初始化辅栈
@@ -378,15 +376,16 @@ void createPathMap(AigerPathToOutputs **pathMap) {
         assistStack.push(tmpVec);
 
         while (!mainStack.empty()) {
-            pathMap[toEven(mainStack.back()) / 2 - 1][j].pathNums += 1;
-
-            // 取队尾元素
-            if (toEven(mainStack.back()) <= inputNums * 2) {
-                // 添加从输入到输出的路径
-                tmpPath.path.clear();
+            if (isStore) {
                 tmpPath.path = reverseVectorWithReturns(mainStack);
                 pathMap[toEven(mainStack.back()) / 2 - 1][j].pathToOutputs.push_back(tmpPath);
-                std::cout << "Current path count: " << ++count << std::endl;
+                pathMap[toEven(mainStack.back()) / 2 - 1][j].pathNums += 1;
+            }
+
+            // 判断队尾元素是否为输入
+            if (toEven(mainStack.back()) <= inputNums * 2) {
+                // 到达一次输入，则说明多一条 path
+                allPathCount += 1;
 
                 // 更新辅栈
                 while ((!mainStack.empty()) && (!assistStack.empty()) && assistStack.top().empty()) {
@@ -409,10 +408,13 @@ void createPathMap(AigerPathToOutputs **pathMap) {
                 else {
                     tmpVec = {};
                 }
+
                 assistStack.push(tmpVec);
             }
         }
     }
+
+    return allPathCount;
 }
 
 
