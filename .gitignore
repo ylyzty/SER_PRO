@@ -2,6 +2,7 @@
 aigers/
 cnfs/
 logs/
+path_num_logs/
 build/
 bin/
 cmake-build-debug/

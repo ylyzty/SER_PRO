@@ -53,6 +53,11 @@ typedef struct Fan {
 /* ========= declare func ======== */
 int readAagFile(const char* filename);
 
+/**
+ * Get circuit path numbers
+ */
+void checkCircuitPaths(const char *aagFile);
+
 void checkAigerModel(aiger* model);
 void checkAigerInputs(aiger* model);
 void checkAigerAndGates(aiger* model);

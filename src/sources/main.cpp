@@ -25,7 +25,7 @@ int main(int argc, char* argv[]) {
     freopen(redirectFilename.c_str(), "a", stderr);
 
     std::string aagFilename = argv[2];
-    readAagFile(aagFilename.c_str());
+    checkCircuitPaths(aagFilename.c_str());
 
     return 0;
 }
