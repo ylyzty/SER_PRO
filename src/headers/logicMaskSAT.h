@@ -90,7 +90,7 @@ int getPathAssociatedInputs(std::vector<unsigned int> path, std::set<unsigned in
  * 从输出开始寻找到输入的所有路径, 构建 pathmap
  * @param pathMap
  */
-void createPathMap(AigerPathToOutputs **pathMap);
+long long createPathMap(bool isStore);
 
 /**
  * 给 AigState 分配内存
