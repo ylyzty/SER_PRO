@@ -64,3 +64,11 @@ void printAigerPath(std::vector<unsigned int> path) {
         }
     }
 }
+
+bool isRequired(long long pathNums, long long maxNums) {
+    if (pathNums >= maxNums) {
+        return false;
+    }
+
+    return true;
+}
