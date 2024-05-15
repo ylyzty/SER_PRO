@@ -12,14 +12,19 @@
 
 #include "../headers/logicMaskSAT.h"
 
-/* ========== GLOBAL VARIABLES ========== */
+/* ========== MINISAT VARIABLES ========== */
 Minisat::Solver* solver;
-aiger* circuitModel;
-AigState* aigState;
 std::vector<std::vector<Minisat::Lit>>* circuitClauses;
 
-Fan* fanoutGraph;
+/* ======== PATHMAP VARIABLES ========= */
 AigerPathToOutputs** pathMap;
+Fan* fanoutGraph;
+
+static long long MAX_PATH_NUMS = 1e4;
+
+/* ========== AIGER VARIABLES ========= */
+aiger* circuitModel;
+AigState* aigState;
 
 unsigned int inputNums;
 unsigned int andNums;
@@ -31,6 +36,9 @@ int varNums;
 
 /* ========== MAPS ========== */
 std::map<unsigned int, int> outputLitToIndex;
+
+
+
 
 /* ========== FUNCTIONS ========== */
 
@@ -188,6 +196,10 @@ void checkCircuitPaths(const char *aagFile) {
 
     long long pathCount = createPathMap(false);
     std::cout << pathCount << std::endl;
+
+    if (pathCount >= MAX_PATH_NUMS) {
+        std::cout << "The number of path is so large!" << std::endl;
+    }
 }
 
 
@@ -405,6 +417,7 @@ long long createPathMap(bool isStore) {
         tmpVec = {curAnd->rhs1, curAnd->rhs0};
         assistStack.push(tmpVec);
 
+        bool pathFlag = false;
         while (!mainStack.empty()) {
             if (isStore) {
                 tmpPath.path = reverseVectorWithReturns(mainStack);
@@ -414,8 +427,11 @@ long long createPathMap(bool isStore) {
 
             // 判断队尾元素是否为输入
             if (toEven(mainStack.back()) <= inputNums * 2) {
-                // 到达一次输入，则说明多一条 path
                 allPathCount += 1;
+                if (allPathCount >= MAX_PATH_NUMS) {
+                    pathFlag = true;
+                    break;
+                }
 
                 // 更新辅栈
                 while ((!mainStack.empty()) && (!assistStack.empty()) && assistStack.top().empty()) {
@@ -441,6 +457,10 @@ long long createPathMap(bool isStore) {
 
                 assistStack.push(tmpVec);
             }
+        }
+
+        if (pathFlag) {
+            break;
         }
     }
 
