@@ -2,11 +2,7 @@
 aigers/
 cnfs/
 logs/
-<<<<<<< Updated upstream
-path_num_logs/
-=======
 logs_path_num/
->>>>>>> Stashed changes
 build/
 bin/
 cmake-build-debug/

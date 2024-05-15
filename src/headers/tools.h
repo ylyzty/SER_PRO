@@ -38,4 +38,12 @@ void swap(std::vector<unsigned int>& vec, int l, int r);
  */
 void printAigerPath(std::vector<unsigned int> path);
 
+/**
+ * 路径数量是否可求解
+ * @param pathNums
+ * @param maxNums
+ * @return
+ */
+bool isRequired(long long pathNums, long long maxNums);
+
 #endif //SER_PRO_TOOLS_H

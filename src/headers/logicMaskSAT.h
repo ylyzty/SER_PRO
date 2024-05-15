@@ -18,6 +18,9 @@ extern "C" {
 #include "aiger.h"
 }
 
+/* Global Variables */
+extern long long MAX_PATH_NUMS;
+
 typedef struct Latch {
     int lit;
     int next;
@@ -52,6 +55,11 @@ typedef struct Fan {
 
 /* ========= declare func ======== */
 int readAagFile(const char* filename);
+
+/**
+ * Get circuit path numbers
+ */
+long long checkCircuitPaths(const char *aagFile);
 
 void checkAigerModel(aiger* model);
 void checkAigerInputs(aiger* model);

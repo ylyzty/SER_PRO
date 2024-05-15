@@ -25,7 +25,17 @@ int main(int argc, char* argv[]) {
     freopen(redirectFilename.c_str(), "a", stderr);
 
     std::string aagFilename = argv[2];
-    readAagFile(aagFilename.c_str());
+    long long pathCount = checkCircuitPaths(aagFilename.c_str());
+    std::cout << "\n\nThe number of path: " << pathCount << std::endl;
+
+//    if (isRequired(pathCount, MAX_PATH_NUMS)) {
+//        readAagFile(aagFilename.c_str());
+//        std::cout << "\n\nThe number of path: " << pathCount << std::endl;
+//    }
+//    else {
+//        std::cerr << "Error: The number of path is too large!" << std::endl;
+//        exit(ERROR_CODE_PATH_NUM_TOO_LARGE);
+//    }
 
     return 0;
 }

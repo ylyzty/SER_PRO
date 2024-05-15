@@ -12,14 +12,19 @@
 
 #include "../headers/logicMaskSAT.h"
 
-/* ========== GLOBAL VARIABLES ========== */
+/* ========== MINISAT VARIABLES ========== */
 Minisat::Solver* solver;
-aiger* circuitModel;
-AigState* aigState;
 std::vector<std::vector<Minisat::Lit>>* circuitClauses;
 
-Fan* fanoutGraph;
+/* ======== PATHMAP VARIABLES ========= */
 AigerPathToOutputs** pathMap;
+Fan* fanoutGraph;
+
+long long MAX_PATH_NUMS = 1e5;
+
+/* ========== AIGER VARIABLES ========= */
+aiger* circuitModel;
+AigState* aigState;
 
 unsigned int inputNums;
 unsigned int andNums;
@@ -32,42 +37,24 @@ int varNums;
 /* ========== MAPS ========== */
 std::map<unsigned int, int> outputLitToIndex;
 
+
+
+
 /* ========== FUNCTIONS ========== */
 
 /**
  * Read aiger file
  */
 int readAagFile(const char *aagFile) {
-    // 1. 统计电路解析和审查时间
-    std::chrono::steady_clock::time_point circuitAnalysisStart = std::chrono::steady_clock::now();
-    circuitModel = (aiger *) malloc(sizeof(aiger));
-    circuitModel = aiger_init();
-    aiger_open_and_read_from_file(circuitModel, aagFile);
-    aiger_check(circuitModel);
-    std::chrono::steady_clock::time_point circuitAnalysisEnd = std::chrono::steady_clock::now();
-    long long circuitAnalysisElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(circuitAnalysisEnd - circuitAnalysisStart).count();
-    std::cout << "Circuit analysis time: " << circuitAnalysisElapsed << "ms" << std::endl;
-
-    // 根据解析的aag文件完善信息
-    inputNums = circuitModel->num_inputs;
-    andNums = circuitModel->num_ands;
-    outputNums = circuitModel->num_outputs;
-
-    // 检验 aag 文件是否是 紧凑且无逆序的
-    checkAigerModel(circuitModel);
-    for (int i = 0; i < outputNums; i++) {
-        outputLitToIndex[toEven((circuitModel->outputs + i)->lit)] = i;
-    }
-
-    // 2. 统计Fanouts创建时间
+    // 1. Fanouts 创建时间
     std::chrono::steady_clock::time_point createFanoutStart = std::chrono::steady_clock::now();
     fanoutGraph = new Fan[inputNums + andNums];
     createFanout();
     std::chrono::steady_clock::time_point creatFanoutEnd = std::chrono::steady_clock::now();
-    long long createFanoutElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(circuitAnalysisEnd - circuitAnalysisStart).count();
+    long long createFanoutElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(creatFanoutEnd - createFanoutStart).count();
     std::cout << "Create Fanout time: " << createFanoutElapsed << "ms" << std::endl;
 
-    // 3. 统计创建pathMap的时间
+    // 2. 创建pathMap的时间
     std::chrono::steady_clock::time_point createPathMapStart = std::chrono::steady_clock::now();
     pathMap = new AigerPathToOutputs*[inputNums + andNums];
     for (int i = 0; i < inputNums + andNums; i++) {
@@ -77,27 +64,27 @@ int readAagFile(const char *aagFile) {
             pathMap[i][j].pathNums = 0;    // 设置初始值
         }
     }
-    createPathMap(false);
+    createPathMap(true);
     std::chrono::steady_clock::time_point createPathMapEnd = std::chrono::steady_clock::now();
     long long createPathMapElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(createPathMapEnd - createPathMapStart).count();
     std::cout << "Create PathMap time: " << createPathMapElapsed << "ms" << std::endl;
 
     aigToSATInit();
-    // 4. 统计初始化Solver时间
+    // 3. 初始化Solver时间
     std::chrono::steady_clock::time_point initSATSolverStart = std::chrono::steady_clock::now();
     aigToSAT();
     std::chrono::steady_clock::time_point initSATSolverEnd = std::chrono::steady_clock::now();
     long long initSATSolverElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(initSATSolverEnd - initSATSolverStart).count();
     std::cout << "Init SAT Solver time: " << initSATSolverElapsed << "ms" << std::endl;
 
-    // 5. 统计刷新Solver时间
+    // 4. 刷新Solver时间
     std::chrono::steady_clock::time_point refreshSolverStart = std::chrono::steady_clock::now();
     refreshSolver();
     std::chrono::steady_clock::time_point refreshSolverEnd = std::chrono::steady_clock::now();
     long long refreshSolverElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(refreshSolverEnd - refreshSolverStart).count();
     std::cout << "Refresh SAT Solver time: " << refreshSolverElapsed << "ms" << std::endl;
 
-    // 6. 统计 SAT 求解时间
+    // 5. SAT 求解时间
     std::chrono::steady_clock::time_point SATSolvingStart = std::chrono::steady_clock::now();
     for (unsigned int startIndex = inputNums; startIndex < (inputNums + andNums); startIndex++) {
         unsigned int startLit = (startIndex + 1) * 2;
@@ -132,12 +119,13 @@ int readAagFile(const char *aagFile) {
                     SATNum = getPathSATNum(path, associatedInputSet);
                 }
 
-                delete associatedInputSet;
-
                 SATNum = SATNum * pow(2, inputNums - associatedInputCnt);
                 std::cout << "Path SAT Num: " << SATNum << "\n" << std::endl;
                 SATSum += SATNum;
+
+                delete associatedInputSet;
             }
+
             std::cout << "All Path SAT Num: " << SATSum << std::endl;
         }
 
@@ -158,6 +146,35 @@ int readAagFile(const char *aagFile) {
     }
 
     return 0;
+}
+
+
+/**
+ * Get circuit path numbers
+ */
+long long checkCircuitPaths(const char *aagFile) {
+    // 1. 统计电路解析和审查时间
+    std::chrono::steady_clock::time_point circuitAnalysisStart = std::chrono::steady_clock::now();
+    circuitModel = (aiger *) malloc(sizeof(aiger));
+    circuitModel = aiger_init();
+    aiger_open_and_read_from_file(circuitModel, aagFile);
+    aiger_check(circuitModel);
+    std::chrono::steady_clock::time_point circuitAnalysisEnd = std::chrono::steady_clock::now();
+    long long circuitAnalysisElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(circuitAnalysisEnd - circuitAnalysisStart).count();
+    std::cout << "Circuit analysis time: " << circuitAnalysisElapsed << "ms" << std::endl;
+
+    // 根据解析的aag文件完善信息
+    inputNums = circuitModel->num_inputs;
+    andNums = circuitModel->num_ands;
+    outputNums = circuitModel->num_outputs;
+
+    // 检验 aag 文件是否是 紧凑且无逆序的
+    checkAigerModel(circuitModel);
+    for (int i = 0; i < outputNums; i++) {
+        outputLitToIndex[toEven((circuitModel->outputs + i)->lit)] = i;
+    }
+
+    return createPathMap(false);
 }
 
 
@@ -375,6 +392,7 @@ long long createPathMap(bool isStore) {
         tmpVec = {curAnd->rhs1, curAnd->rhs0};
         assistStack.push(tmpVec);
 
+        bool isPathNumsTooLarge = false;
         while (!mainStack.empty()) {
             if (isStore) {
                 tmpPath.path = reverseVectorWithReturns(mainStack);
@@ -384,8 +402,11 @@ long long createPathMap(bool isStore) {
 
             // 判断队尾元素是否为输入
             if (toEven(mainStack.back()) <= inputNums * 2) {
-                // 到达一次输入，则说明多一条 path
                 allPathCount += 1;
+                if (allPathCount >= MAX_PATH_NUMS) {
+                    isPathNumsTooLarge = true;
+                    break;
+                }
 
                 // 更新辅栈
                 while ((!mainStack.empty()) && (!assistStack.empty()) && assistStack.top().empty()) {
@@ -411,6 +432,10 @@ long long createPathMap(bool isStore) {
 
                 assistStack.push(tmpVec);
             }
+        }
+
+        if (isPathNumsTooLarge) {
+            break;
         }
     }
 
