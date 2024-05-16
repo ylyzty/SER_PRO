@@ -20,7 +20,7 @@ std::vector<std::vector<Minisat::Lit>>* circuitClauses;
 AigerPathToOutputs** pathMap;
 Fan* fanoutGraph;
 
-long long MAX_PATH_NUMS = 1e5;
+const long long MAX_PATH_NUMS = 1e5;
 
 /* ========== AIGER VARIABLES ========= */
 aiger* circuitModel;

@@ -19,7 +19,7 @@ extern "C" {
 }
 
 /* Global Variables */
-extern long long MAX_PATH_NUMS;
+extern const long long MAX_PATH_NUMS;
 
 typedef struct Latch {
     int lit;
