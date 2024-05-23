@@ -1,8 +1,10 @@
 .idea/
 aigers/
 cnfs/
+circuitData/
 logs/
 logs_path_num/
+logs_parallel_opti/
 build/
 bin/
 cmake-build-debug/
