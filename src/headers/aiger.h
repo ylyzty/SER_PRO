@@ -247,7 +247,7 @@ int aiger_write_to_string (aiger *, aiger_mode, char *str, size_t len);
 int aiger_write_generic (aiger *, aiger_mode, void *state, aiger_put);
 
 /*------------------------------------------------------------------------*/
-/* The following function allows to write to a file.  The write mode is
+/* The following function allows to write to a file.  The writeCircuit mode is
  * determined from the suffix in the file name.  The mode used is ASCII for
  * a '.aag' suffix and binary mode otherwise.  In addition a '.gz' suffix can
  * be added which requests the file to written by piping it through 'gzip'.

@@ -25,6 +25,13 @@ int getArrayLength(T& array);
 unsigned int toEven(unsigned int t);
 
 /**
+ * 判断是否为偶数
+ * @param t
+ * @return
+ */
+bool isEven(unsigned int t);
+
+/**
  * 翻转 vector
  * @param vec
  */
@@ -45,5 +52,14 @@ void printAigerPath(std::vector<unsigned int> path);
  * @return
  */
 bool isRequired(long long pathNums, long long maxNums);
+
+/**
+ * 字符串分割
+ * @param origin
+ * @param delim
+ * @param tokens
+ * @return
+ */
+void split(const std::string& origin, const std::string& delim, std::vector<std::string>& tokens);
 
 #endif //SER_PRO_TOOLS_H

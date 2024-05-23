@@ -3,8 +3,10 @@ aigers/
 cnfs/
 logs/
 logs_path_num/
+logs_parallel_opti/
 build/
 bin/
+circuitData/
 cmake-build-debug/
 src/cmake-build-debug/
 src/sources/*.txt
