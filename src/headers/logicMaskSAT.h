@@ -61,11 +61,6 @@ int readAagFile(const char* filename);
  */
 long long checkCircuitPaths(const char *aagFile);
 
-void checkAigerModel(aiger* model);
-void checkAigerInputs(aiger* model);
-void checkAigerAndGates(aiger* model);
-void checkAigerOutputs(aiger* model);
-
 /**
  * 根据 Aiger 类型的 CircuitModel, 建立电路的连接关系
  */
@@ -170,14 +165,15 @@ void ternary(int p, int q, int r, bool flag);
 void andGateConstraint(int lhs, int rhs0, int rhs1, bool flag);
 
 /**
- * 计算与门的所有 SAT 个数
+ * 计算单个与门的 SAT 可满足解的个数
+ * 包含多条敏化路径
  * @param andIndex
  * @return
  */
 double getAndGateSATNum(unsigned int andIndex);
 
 /**
- * 计算单条路径的 SAT 个数
+ * 计算单条敏化路径的 SAT 可满足解个数
  * @param path
  * @param inputSet
  * @return
@@ -192,10 +188,19 @@ double getPathSATNum(std::vector<unsigned int> path, std::set<unsigned int>* inp
 void mapCircuit();
 
 /**
- * 将电路信息输出到指定文件
+ * 将 Circuit Info 写入文件
  * @param targetPath
  */
 void writeCircuit(const std::string& targetPath);
+
+/**
+ * 校验 Aiger Model 是否规范
+ * @param model
+ */
+void checkAigerModel(aiger* model);
+void checkAigerInputs(aiger* model);
+void checkAigerAndGates(aiger* model);
+void checkAigerOutputs(aiger* model);
 
 void buildLit2And();
 

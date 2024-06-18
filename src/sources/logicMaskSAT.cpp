@@ -574,6 +574,13 @@ void binary(int p, int q, bool flag) {
     }
 }
 
+/**
+ * 添加三元约束
+ * @param p
+ * @param q
+ * @param r
+ * @param flag
+ */
 void ternary(int p, int q, int r, bool flag) {
     Minisat::Lit litA = (p > 0) ? Minisat::mkLit(p, false) : Minisat::mkLit(-p, true);
     Minisat::Lit litB = (q > 0) ? Minisat::mkLit(q, false) : Minisat::mkLit(-q, true);
@@ -589,12 +596,25 @@ void ternary(int p, int q, int r, bool flag) {
     }
 }
 
+/**
+ * 与门约束
+ * @param lhs
+ * @param rhs0
+ * @param rhs1
+ * @param flag
+ */
 void andGateConstraint(int lhs, int rhs0, int rhs1, bool flag) {
     binary(-lhs, rhs0, flag);
     binary(-lhs, rhs1, flag);
     ternary(lhs, -rhs0, -rhs1, flag);
 }
 
+/**
+ * 计算单个与门的 SAT 可满足解的个数
+ * 包含多条敏化路径
+ * @param andIndex
+ * @return
+ */
 double getAndGateSATNum(unsigned int andIndex) {
     unsigned int startLit = (andIndex + 1) * 2;
     auto* affectedOutputs = new std::vector<unsigned int>();
@@ -641,8 +661,9 @@ double getAndGateSATNum(unsigned int andIndex) {
 }
 
 /**
- * 计算敏化路径可以被敏化的 输入向量个数
+ * 计算单条敏化路径的 SAT 可满足解个数
  * @param path
+ * @param inputSet
  * @return
  */
 double getPathSATNum(std::vector<unsigned int> path, std::set<unsigned int>* inputSet) {
@@ -745,6 +766,10 @@ void mapCircuit() {
 }
 
 
+/**
+ * 将 Circuit Info 写入文件
+ * @param targetPath
+ */
 void writeCircuit(const std::string& targetPath) {
     // 记录 Output Node
     std::set<unsigned int> outputLits;
@@ -814,6 +839,10 @@ void writeCircuit(const std::string& targetPath) {
 }
 
 
+/**
+ * 校验 Aiger Model 是否规范
+ * @param model
+ */
 void checkAigerModel(aiger* model) {
     checkAigerInputs(model);
     checkAigerAndGates(model);
