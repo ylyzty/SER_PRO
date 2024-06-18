@@ -2,6 +2,7 @@
  * Created by zyuli on 2024/3/21 
  *******************************************/
 #include <iostream>
+#include <fstream>
 #include <cstdlib>
 #include <cmath>
 #include <algorithm>
@@ -9,6 +10,7 @@
 #include <set>
 #include <map>
 #include <chrono>
+#include <cassert>
 
 #include "../headers/logicMaskSAT.h"
 
@@ -35,9 +37,11 @@ unsigned int firstAndIdx;
 int varNums;
 
 /* ========== MAPS ========== */
+std::map<unsigned int, int> inputLitToIndex;
+std::map<unsigned int, int> andLhsToIndex;
 std::map<unsigned int, int> outputLitToIndex;
-
-
+std::map<unsigned int, int> circuitNodeToID;
+std::map<unsigned int, double> circuitNodeToSAT;
 
 
 /* ========== FUNCTIONS ========== */
@@ -87,53 +91,24 @@ int readAagFile(const char *aagFile) {
     // 5. SAT 求解时间
     std::chrono::steady_clock::time_point SATSolvingStart = std::chrono::steady_clock::now();
     for (unsigned int startIndex = inputNums; startIndex < (inputNums + andNums); startIndex++) {
-        unsigned int startLit = (startIndex + 1) * 2;
-        auto* affectedOutputs = new std::vector<unsigned int>();
-        getAndLitAffectedOutputs(startLit, affectedOutputs);
-        sort(affectedOutputs->begin(), affectedOutputs->end());
-
-        for (unsigned int endLit : *affectedOutputs) {
-            int endIndex = outputLitToIndex.at(toEven(endLit));
-            int pathNums = pathMap[startIndex][endIndex].pathNums;
-            std::cout << "\n" << startLit << " ==========> " << endLit << ": " << pathNums << std::endl;
-
-            std::vector<unsigned int> path;
-            double SATSum = 0;
-            double SATNum = 0;
-            int pathNo = 0;
-            for (int i = 0; i < pathNums; i++) {
-                path = pathMap[startIndex][endIndex].pathToOutputs.at(i).path;
-                pathNo += 1;
-                std::cout << "Path No." << pathNo << "\tPath length: " << path.size() << std::endl;
-
-                // 计算路径关联的输入个数
-                auto* associatedInputSet = new std::set<unsigned int>();
-                int associatedInputCnt = getPathAssociatedInputs(path, associatedInputSet);
-                std::cout << "Associated input counts " << associatedInputCnt << " / " << inputNums << std::endl;
-
-                if (path.size() <= 1) {
-                    SATNum = 1;
-                }
-                else {
-                    refreshSolver();
-                    SATNum = getPathSATNum(path, associatedInputSet);
-                }
-
-                SATNum = SATNum * pow(2, inputNums - associatedInputCnt);
-                std::cout << "Path SAT Num: " << SATNum << "\n" << std::endl;
-                SATSum += SATNum;
-
-                delete associatedInputSet;
-            }
-
-            std::cout << "All Path SAT Num: " << SATSum << std::endl;
-        }
-
-        delete affectedOutputs;
+        circuitNodeToSAT[(startIndex + 1) * 2] = getAndGateSATNum(startIndex);
     }
     std::chrono::steady_clock::time_point SATSolvingEnd = std::chrono::steady_clock::now();
     long long SATSolvingElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(SATSolvingEnd - SATSolvingStart).count();
     std::cout << "SAT solving time: " << SATSolvingElapsed << "ms" << std::endl;
+
+    // 6. File IO
+    std::vector<std::string> tokens;
+    std::string aagFilePath = aagFile;
+    split(aagFilePath, "/", tokens);
+
+    std::string aagFileName = tokens.at(tokens.size() - 1);
+    split(aagFileName, ".", tokens);
+
+    std::string filePath = "circuitData/";
+    filePath += tokens[0];
+    filePath += ".txt";
+    writeCircuit(filePath);
 
     // TODO: 释放内存空间
     delete solver;
@@ -170,9 +145,7 @@ long long checkCircuitPaths(const char *aagFile) {
 
     // 检验 aag 文件是否是 紧凑且无逆序的
     checkAigerModel(circuitModel);
-    for (int i = 0; i < outputNums; i++) {
-        outputLitToIndex[toEven((circuitModel->outputs + i)->lit)] = i;
-    }
+    mapCircuit();
 
     return createPathMap(false);
 }
@@ -622,11 +595,49 @@ void andGateConstraint(int lhs, int rhs0, int rhs1, bool flag) {
     ternary(lhs, -rhs0, -rhs1, flag);
 }
 
-int getAndGateSATNum(unsigned int andLit) {
-    std::vector<unsigned int>* affectedOutputLitVector;
-    getAndLitAffectedOutputs(andLit, affectedOutputLitVector);
+double getAndGateSATNum(unsigned int andIndex) {
+    unsigned int startLit = (andIndex + 1) * 2;
+    auto* affectedOutputs = new std::vector<unsigned int>();
+    getAndLitAffectedOutputs(startLit, affectedOutputs);
+    sort(affectedOutputs->begin(), affectedOutputs->end());
 
-    return 0;
+    double SATSum = 0;
+    double SATNum = 0;
+    for (unsigned int endLit : *affectedOutputs) {
+        int endIndex = outputLitToIndex.at(toEven(endLit));
+        int pathNums = pathMap[andIndex][endIndex].pathNums;
+        std::cout << "\n" << startLit << " ==========> " << endLit << ": " << pathNums << std::endl;
+
+        std::vector<unsigned int> path;
+        int pathNo = 0;
+        for (int i = 0; i < pathNums; i++) {
+            path = pathMap[andIndex][endIndex].pathToOutputs.at(i).path;
+            pathNo += 1;
+            std::cout << "Path No." << pathNo << "\tPath length: " << path.size() << std::endl;
+
+            // 计算路径关联的输入个数
+            auto* associatedInputSet = new std::set<unsigned int>();
+            int associatedInputCnt = getPathAssociatedInputs(path, associatedInputSet);
+            std::cout << "Associated input counts " << associatedInputCnt << " / " << inputNums << std::endl;
+
+            if (path.size() <= 1) {
+                SATNum = 1;
+            }
+            else {
+                refreshSolver();
+                SATNum = getPathSATNum(path, associatedInputSet);
+            }
+
+            SATNum = SATNum * pow(2, inputNums - associatedInputCnt);
+            std::cout << "SAT Num: " << SATNum << "\n" << std::endl;
+            SATSum += SATNum;
+
+            delete associatedInputSet;
+        }
+    }
+
+    delete affectedOutputs;
+    return SATSum;
 }
 
 /**
@@ -703,6 +714,103 @@ double getPathSATNum(std::vector<unsigned int> path, std::set<unsigned int>* inp
     }
 
     return res;
+}
+
+
+/**
+ * NodeLit  --> NodeID
+ *
+ * 给每个 Node 分配一个唯一的 ID
+ */
+void mapCircuit() {
+    int id = 0;
+
+    for (int i = 0; i < inputNums; i++) {
+        unsigned int inputLit = (circuitModel->inputs + i)->lit;
+        inputLitToIndex[inputLit] = i;
+        circuitNodeToID[inputLit] = id++;
+    }
+
+    for (int i = 0; i < outputNums; i++) {
+        outputLitToIndex[toEven((circuitModel->outputs + i)->lit)] = i;
+    }
+
+    for (int i = 0; i < andNums; i++) {
+        unsigned int andLhs = (circuitModel->ands + i)->lhs;
+        andLhsToIndex[andLhs] = i;
+        circuitNodeToID[andLhs] = id++;
+    }
+
+    assert(id == (inputNums + andNums));
+}
+
+
+void writeCircuit(const std::string& targetPath) {
+    // 记录 Output Node
+    std::set<unsigned int> outputLits;
+    for (int i = 0; i < outputNums; i++) {
+        outputLits.insert((circuitModel->outputs + i)->lit);
+    }
+
+    std::fstream toFile;
+    toFile.open(targetPath, std::ios::out);
+
+    /**
+     * Write Nodes
+     * Node Type:
+     *     - 0 / 000: input node
+     *     - 1 / 010: and node
+     *     - 2 / 100: output node
+     */
+
+    for (int i = 0; i < inputNums; i++) {
+        unsigned int inputLit = (circuitModel->inputs + i)->lit;
+        toFile << circuitNodeToID[inputLit] << " " << inputLit << " "
+                << INPUT_NODE_ENCODE << " " << "/" <<  std::endl;
+    }
+
+    for (int i = 0; i < andNums; i++) {
+        unsigned int lhs = (circuitModel->ands + i)->lhs;
+        if (outputLitToIndex.find(lhs) == outputLitToIndex.end()) {
+            // And Node
+            toFile << circuitNodeToID[lhs] << " " << lhs << " "
+                    << AND_NODE_ENCODE << " " << circuitNodeToSAT[lhs] << std::endl;
+        }
+        else {
+            // Output Node
+            toFile << circuitNodeToID[lhs] << " " << lhs << " "
+                    << OUTPUT_NODE_ENCODE << " " << circuitNodeToSAT[lhs] << std::endl;
+        }
+    }
+
+    /**
+     * Write Edges
+     */
+     for (int i = 0; i < andNums; i++) {
+         unsigned int rhs0 = (circuitModel->ands + i)->rhs0;
+         unsigned int rhs1 = (circuitModel->ands + i)->rhs1;
+         unsigned int lhs = (circuitModel->ands + i)->lhs;
+
+         if (!isEven(rhs0)) {
+             // 奇数，存在非门
+             toFile << circuitNodeToID[toEven(rhs0)] << " " << circuitNodeToID[lhs] << " " << 1 << std::endl;
+         }
+         else {
+             // 偶数，不存在非门
+             toFile << circuitNodeToID[toEven(rhs0)] << " " << circuitNodeToID[lhs] << " " << 0 << std::endl;
+         }
+
+         if (!isEven(rhs1)) {
+             // 奇数，存在非门
+             toFile << circuitNodeToID[toEven(rhs1)] << " " << circuitNodeToID[lhs] << " " << 1 << std::endl;
+         }
+         else {
+             // 偶数，不存在非门
+             toFile << circuitNodeToID[toEven(rhs1)] << " " << circuitNodeToID[lhs] << " " << 0 << std::endl;
+         }
+     }
+
+    toFile.close();
 }
 
 

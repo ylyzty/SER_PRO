@@ -15,4 +15,11 @@
 #define ERROR_CODE_ABNORMAL_RHS_LIT                1008
 #define ERROR_CODE_PATH_NUM_TOO_LARGE              1009
 
+# define INPUT_NODE_ENCODE                         0
+# define AND_NODE_ENCODE                           1
+# define OUTPUT_NODE_ENCODE                        2
+# define INPUT_NODE_ONE_HOT_ENCODE                 "000"
+# define AND_NODE_ONE_HOT_ENCODE                   "010"
+# define OUTPUT_NODE_ONE_HOT_ENCODE                "100"
+
 #endif //SER_PRO_CONSTANTS_H

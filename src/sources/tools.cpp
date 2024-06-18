@@ -22,6 +22,10 @@ unsigned int toEven(unsigned int t) {
     return (t & 1) ? (t - 1) : t;
 }
 
+bool isEven(unsigned int t) {
+    return (t & 1) == 0;
+}
+
 void reverseVectorInPlace(std::vector<unsigned int>& vec) {
     int left = 0;
     int right = vec.size() - 1;
@@ -71,4 +75,17 @@ bool isRequired(long long pathNums, long long maxNums) {
     }
 
     return true;
+}
+
+void split(const std::string& origin, const std::string& delim, std::vector<std::string>& tokens) {
+    tokens.clear();
+
+    auto start = origin.find_first_not_of(delim, 0);
+    auto pos = origin.find_first_of(delim, start);
+    while (pos != std::string::npos || start != std::string::npos) {
+        tokens.emplace_back(std::move(origin.substr(start, pos - start)));
+
+        start = origin.find_first_not_of(delim, pos);
+        pos = origin.find_first_of(delim, start);
+    }
 }

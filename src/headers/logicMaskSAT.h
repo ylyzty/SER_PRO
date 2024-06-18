@@ -169,7 +169,33 @@ void ternary(int p, int q, int r, bool flag);
  */
 void andGateConstraint(int lhs, int rhs0, int rhs1, bool flag);
 
+/**
+ * 计算与门的所有 SAT 个数
+ * @param andIndex
+ * @return
+ */
+double getAndGateSATNum(unsigned int andIndex);
+
+/**
+ * 计算单条路径的 SAT 个数
+ * @param path
+ * @param inputSet
+ * @return
+ */
 double getPathSATNum(std::vector<unsigned int> path, std::set<unsigned int>* inputSet);
+
+/**
+ * NodeLit  --> NodeID
+ *
+ * 给每个 Node 分配一个唯一的 ID
+ */
+void mapCircuit();
+
+/**
+ * 将电路信息输出到指定文件
+ * @param targetPath
+ */
+void writeCircuit(const std::string& targetPath);
 
 void buildLit2And();
 
