@@ -18,8 +18,6 @@ extern "C" {
 #include "aiger.h"
 }
 
-/* Global Variables */
-extern const long long MAX_PATH_NUMS;
 
 typedef struct Latch {
     int lit;
@@ -44,14 +42,22 @@ typedef struct AigerPath {
 
 typedef struct AigerPathToOutputs {
     std::vector<AigerPath> pathToOutputs;
-//    std::vector<int> solvedResult;
     int pathNums;
-} AigerPathIn2Out;
+} AigerPathToOutputs;
 
 typedef struct Fan {
     std::vector<int> fanouts;
 } Fan;
 
+
+/* Global Variables */
+//extern Minisat::Solver* solver;
+//extern aiger* circuitModel;
+//extern AigState* aigState;
+//extern Fan* fanoutGraph;
+
+
+extern const long long MAX_PATH_NUMS;
 
 /* ========= declare func ======== */
 int readAagFile(const char* filename);
@@ -203,5 +209,10 @@ void checkAigerAndGates(aiger* model);
 void checkAigerOutputs(aiger* model);
 
 void buildLit2And();
+
+/**
+ * 释放申请的内存空间
+ */
+void releaseMem();
 
 #endif //SER_PRO_LOGICMASKSAT_H

@@ -110,16 +110,6 @@ int readAagFile(const char *aagFile) {
     filePath += ".txt";
     writeCircuit(filePath);
 
-    // TODO: 释放内存空间
-    delete solver;
-    delete circuitModel;
-    delete aigState;
-    delete circuitClauses;
-    delete[] fanoutGraph;
-    for (int i = 0; i < (inputNums + andNums); i++) {
-        delete [] pathMap[i];
-    }
-
     return 0;
 }
 
@@ -156,10 +146,10 @@ long long checkCircuitPaths(const char *aagFile) {
  */
 void createFanout() {
     std::queue<unsigned int> queue;
-    int tmpVisited[inputNums + andNums];
+    bool tmpVisited[inputNums + andNums];
 
     for (int i = 0; i < inputNums + andNums; i++) {
-        tmpVisited[i] = 0;
+        tmpVisited[i] = false;
     }
 
     for (int i = 0; i < outputNums; i++) {
@@ -169,7 +159,7 @@ void createFanout() {
 
     while (!queue.empty()) {
         unsigned int tmpV = queue.front();
-        tmpVisited[toEven(tmpV) / 2 - 1] = 1;
+        tmpVisited[toEven(tmpV) / 2 - 1] = true;
 
         if (toEven(tmpV) <= inputNums * 2) {
             queue.pop();    // 弹出队首元素
@@ -184,18 +174,18 @@ void createFanout() {
             rhs0 = (circuitModel->ands + toEven(tmpV) / 2 - inputNums - 1)->rhs0;
             rhs1 = (circuitModel->ands + toEven(tmpV) / 2 - inputNums - 1)->rhs1;
 
-            if (tmpVisited[toEven(rhs0) / 2 - 1] == 0) {
+            if (!tmpVisited[toEven(rhs0) / 2 - 1]) {
                 queue.push(rhs0);
-                tmpVisited[toEven(rhs0) / 2 - 1] = 1;
+                tmpVisited[toEven(rhs0) / 2 - 1] = true;
             }
 
-            if (tmpVisited[toEven(rhs1) / 2 - 1] == 0) {
+            if (!tmpVisited[toEven(rhs1) / 2 - 1]) {
                 queue.push(rhs1);
-                tmpVisited[toEven(rhs1) / 2 - 1] = 1;
+                tmpVisited[toEven(rhs1) / 2 - 1] = true;
             }
 
-            fanoutGraph[(toEven(rhs0) / 2 - 1)].fanouts.push_back((int) tmpV);
-            fanoutGraph[(toEven(rhs1) / 2 - 1)].fanouts.push_back((int) tmpV);
+            fanoutGraph[(toEven(rhs0) / 2 - 1)].fanouts.push_back((int) toEven(tmpV));
+            fanoutGraph[(toEven(rhs1) / 2 - 1)].fanouts.push_back((int) toEven(tmpV));
 
             queue.pop();    // 弹出队首元素
         }
@@ -265,7 +255,7 @@ int getAndLitAffectedOutputs(unsigned int andLit, std::vector<unsigned int>* aff
  * @param associatedInputLitSet
  * @return
  */
-int getAndLitAssociatedInputs(unsigned int andLit, std::set<unsigned int> *associatedInputLitSet) {
+int getAndLitAssociatedInputs(unsigned int andLit, std::set<unsigned int>* associatedInputLitSet) {
     std::queue<unsigned int> queue;
     std::set<unsigned int> addedAndLitSet;
 
@@ -320,10 +310,10 @@ int getPathAssociatedInputs(std::vector<unsigned int> path, std::set<unsigned in
         unsigned int andLit = path.at(i);
         unsigned int rhs = path.at(i - 1);
         aiger_and *curAnd = circuitModel->ands + (toEven(andLit) / 2 - inputNums - 1);
-        if (curAnd->rhs0 == rhs) {
+        if (toEven(curAnd->rhs0) == toEven(rhs)) {
             getAndLitAssociatedInputs(curAnd->rhs1, associatedInputLitSet);
         }
-        else if (curAnd->rhs1 == rhs) {
+        else if (toEven(curAnd->rhs1) == toEven(rhs)) {
             getAndLitAssociatedInputs(curAnd->rhs0, associatedInputLitSet);
         }
         else {
@@ -879,5 +869,17 @@ void checkAigerOutputs(aiger* model) {
             std::cerr << "Error: Aag file with abnormal output lit!" << std::endl;
             exit(ERROR_CODE_ABNORMAL_OUTPUT_LIT);
         }
+    }
+}
+
+void releaseMem() {
+    // TODO: 释放内存空间
+    delete solver;
+    delete circuitModel;
+    delete aigState;
+    delete circuitClauses;
+    delete[] fanoutGraph;
+    for (int i = 0; i < (inputNums + andNums); i++) {
+        delete [] pathMap[i];
     }
 }
