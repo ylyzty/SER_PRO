@@ -1,7 +1,7 @@
 #include <iostream>
 #include "../headers/logicMaskSAT.h"
+#include "../headers/reConvergenceSAT.h"
 
-extern aiger* circuitModel;
 
 /**
  * 命令行参数列表:
@@ -35,6 +35,9 @@ int main(int argc, char* argv[]) {
         std::cerr << "Error: The number of path is too large!" << std::endl;
         exit(ERROR_CODE_PATH_NUM_TOO_LARGE);
     }
+
+    reConvergenceSATEntry();
+    releaseMem();
 
     return 0;
 }

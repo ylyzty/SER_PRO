@@ -12,6 +12,7 @@ set(DIR_SRCS
         src/sources/aiger.c
         minisat/core/Solver.cc
         src/sources/logicMaskSAT.cpp
+        src/sources/reConvergenceSAT.cpp
         src/sources/main.cpp
 )
 
