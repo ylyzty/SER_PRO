@@ -12,6 +12,14 @@ int getArrayLength(T& array) {
     return (sizeof(array) / sizeof(array[0]));
 }
 
+/**
+ * 定义泛型函数, 打印 map
+ * @tparam P
+ * @tparam Q
+ */
+template<class P, class Q>
+void printMap(std::map<P, Q> curMap);
+
 
 /**
  * 将无符号整数 转为 偶数(向下取)
@@ -87,5 +95,40 @@ void split(const std::string& origin, const std::string& delim, std::vector<std:
 
         start = origin.find_first_not_of(delim, pos);
         pos = origin.find_first_of(delim, start);
+    }
+}
+
+bool isConnectedInputs(unsigned int rhs0, unsigned int rhs1, unsigned int inputCnt) {
+    if (toEven(rhs0) <= (2 * inputCnt)) {
+        return true;
+    }
+
+    if (toEven(rhs1) <= (2 * inputCnt)) {
+        return true;
+    }
+
+    return false;
+}
+
+void setUnion(std::set<unsigned int>* set1,
+              std::set<unsigned int>* set2,
+              std::set<unsigned int>* curSet) {
+
+    for (unsigned int input : *set1) {
+        curSet->insert(input);
+    }
+    for (unsigned int input : *set2) {
+        curSet->insert(input);
+    }
+}
+
+void setIntersection(std::set<unsigned int>* set1,
+                     std::set<unsigned int>* set2,
+                     std::set<unsigned int>* curSet) {
+
+    for (unsigned int input : *set1) {
+        if (set2->find(input) != set2->end()) {
+            curSet->insert(input);
+        }
     }
 }
