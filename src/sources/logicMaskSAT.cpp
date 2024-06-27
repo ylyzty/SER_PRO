@@ -439,10 +439,10 @@ void aigToSAT() {
         aigState->ands[i] = lhsVar;
 
         aiger_and *curAnd = circuitModel->ands + i;
-        andGateConstraint(lhsVar,
-                          import(aigState, curAnd->rhs0),
-                          import(aigState, curAnd->rhs1),
-                          true);
+        addAndGateConstraint(lhsVar,
+                             import(aigState, curAnd->rhs0),
+                             import(aigState, curAnd->rhs1),
+                             true);
 
     }
 
@@ -492,7 +492,7 @@ void refreshSolver() {
  * @return
  */
 int createNewVar() {
-    int i = solver->newVar();
+    solver->newVar();
     return varNums++;
 }
 
@@ -587,16 +587,41 @@ void ternary(int p, int q, int r, bool flag) {
 }
 
 /**
- * 与门约束
+ * 添加与门约束
  * @param lhs
  * @param rhs0
  * @param rhs1
  * @param flag
  */
-void andGateConstraint(int lhs, int rhs0, int rhs1, bool flag) {
+void addAndGateConstraint(int lhs, int rhs0, int rhs1, bool flag) {
     binary(-lhs, rhs0, flag);
     binary(-lhs, rhs1, flag);
     ternary(lhs, -rhs0, -rhs1, flag);
+}
+
+/**
+ * 添加路径敏化约束
+ * @param path
+ */
+void addPathSensitizationConstraint(const std::vector<unsigned int> &path) {
+    int slow = 0;
+    int fast = 1;
+    unsigned int cur, lhs;
+
+    while (fast < path.size()) {
+        cur = path[slow];
+        lhs = path[fast];
+        aiger_and *curAnd = circuitModel->ands + (toEven(lhs) / 2 - inputNums - 1);
+        if (toEven(cur) == toEven(curAnd->rhs0)) {
+            unary(import(aigState, curAnd->rhs1), false);
+        }
+        else {
+            unary(import(aigState, curAnd->rhs0), false);
+        }
+
+        slow += 1;
+        fast += 1;
+    }
 }
 
 /**
@@ -621,6 +646,7 @@ double getAndGateSATNum(unsigned int andIndex) {
         std::vector<unsigned int> path;
         int pathNo = 0;
         for (int i = 0; i < pathNums; i++) {
+            path.clear();
             path = pathMap[andIndex][endIndex].pathToOutputs.at(i).path;
             pathNo += 1;
             std::cout << "Path No." << pathNo << "\tPath length: " << path.size() << std::endl;
@@ -656,33 +682,17 @@ double getAndGateSATNum(unsigned int andIndex) {
  * @param inputSet
  * @return
  */
-double getPathSATNum(std::vector<unsigned int> path, std::set<unsigned int>* inputSet) {
-    double res = 0;
+double getPathSATNum(const std::vector<unsigned int>& path, std::set<unsigned int>* inputSet) {
+    addPathSensitizationConstraint(path);
+    return satLoopSolvingSingle(inputSet);
+}
 
-    int slow = 0;
-    int fast = 1;
-    unsigned int rhs0, rhs1;
-    unsigned int cur, lhs;
+double satLoopSolvingSingle(std::set<unsigned int>* inputSet) {
+    double satNum = 0;
 
-    while (fast < path.size()) {
-        cur = path[slow];
-        lhs = path[fast];
-        aiger_and *curAnd = circuitModel->ands + (toEven(lhs) / 2 - inputNums - 1);
-        if (toEven(cur) == toEven(curAnd->rhs0)) {
-            unary(import(aigState, curAnd->rhs1), false);
-        }
-        else {
-            unary(import(aigState, curAnd->rhs0), false);
-        }
-
-        slow += 1;
-        fast += 1;
-    }
-
-    bool sat = solver->solve();
     Minisat::vec<Minisat::Lit> tmpLits;
+    bool sat = solver->solve();
     while (sat) {
-        res += 1;
         tmpLits.clear();
         for (unsigned int inputLit : *inputSet) {
             aiger_symbol *curInput = circuitModel->inputs + (inputLit / 2 - 1);
@@ -714,17 +724,14 @@ double getPathSATNum(std::vector<unsigned int> path, std::set<unsigned int>* inp
         if (!sat) {
             break;
         }
-
-        solver->addClause(tmpLits);
-
-//        std::chrono::steady_clock::time_point solveStart = std::chrono::steady_clock::now();
-        sat = solver->solve();
-//        std::chrono::steady_clock::time_point solveEnd = std::chrono::steady_clock::now();
-//        long long solveElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(solveEnd - solveStart).count();
-//        std::cout << "Solve time: " << solveElapsed << "ms" << std::endl;
+        else {
+            satNum += 1;
+            solver->addClause(tmpLits);
+            sat = solver->solve();
+        }
     }
 
-    return res;
+    return satNum;
 }
 
 

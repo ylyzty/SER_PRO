@@ -168,7 +168,13 @@ void ternary(int p, int q, int r, bool flag);
  * @param rhs0
  * @param rhs1
  */
-void andGateConstraint(int lhs, int rhs0, int rhs1, bool flag);
+void addAndGateConstraint(int lhs, int rhs0, int rhs1, bool flag);
+
+/**
+ * 添加路径敏化约束
+ * @param path
+ */
+void addPathSensitizationConstraint(const std::vector<unsigned int> &path);
 
 /**
  * 计算单个与门的 SAT 可满足解的个数
@@ -184,7 +190,13 @@ double getAndGateSATNum(unsigned int andIndex);
  * @param inputSet
  * @return
  */
-double getPathSATNum(std::vector<unsigned int> path, std::set<unsigned int>* inputSet);
+double getPathSATNum(const std::vector<unsigned int>& path, std::set<unsigned int>* inputSet);
+
+/**
+ * SAT 单次循环求解
+ * @return
+ */
+double satLoopSolvingSingle(std::set<unsigned int>* inputSet);
 
 /**
  * NodeLit  --> NodeID
