@@ -5,19 +5,19 @@
 #include <vector>
 #include <map>
 
-/* ======== 全局变量 ======= */
+/* ======== Global variables ======= */
 ReConvergencePath** reConvergenceMap;
 bool* isVisited;
 std::vector<unsigned int>* curPath;
 
-/* =======  */
+/* ========== ReConvergence ==========  */
 std::vector<unsigned int> reConvergencePath1;
 std::vector<unsigned int> reConvergencePath2;
-auto* associatedInputSet1 = new std::set<unsigned int>();
-auto* associatedInputSet2 = new std::set<unsigned int>();
-auto* unionSet = new std::set<unsigned int>();
+std::set<unsigned int>* associatedInputSet1;
+std::set<unsigned int>* associatedInputSet2;
+std::set<unsigned int>* unionSet;
 
-/* ======== Maps ========== */
+/* ========== Maps ========== */
 std::map<int, unsigned int> indexToAndLit;
 std::map<unsigned int, int> andLitToIndex;
 std::map<int, double> andNodeIndexToSAT;
@@ -30,14 +30,12 @@ void reConvergenceSATEntry() {
     createReConvergenceMap();
 
     for (int i = 0; i < circuitModel->num_ands; i++) {
+        // 计算每个节点的 所有路径重汇聚频率总和
         getAndGateReConvergenceSATNum(indexToAndLit[i]);
     }
     printMap(andNodeIndexToSAT);
 
-    // TODO: release memory
-    delete associatedInputSet1;
-    delete associatedInputSet2;
-    delete unionSet;
+    releaseReConvergenceSATMem();
 }
 
 void reConvergenceInit() {
@@ -62,6 +60,11 @@ void reConvergenceInit() {
     curPath = new std::vector<unsigned int>();
     curPath->clear();
 
+    // 初始化 reConvergence variables
+    associatedInputSet1 = new std::set<unsigned int>();
+    associatedInputSet2 = new std::set<unsigned int>();
+    unionSet = new std::set<unsigned int>();
+
     // 定义 AndLit 的索引
     for (int i = 0; i < andNums; i++) {
         unsigned int andLit = (circuitModel->ands + i)->lhs;
@@ -74,7 +77,7 @@ void reConvergenceInit() {
 /**
  * 1. 从 输入 开始，DFS遍历
  * 2. 如果输入连接的与门访问过，则跳过；
- * 3.
+ * 3. 如果输入连接的与门没被访问过，则调用 createRCMDfs 方法
  */
 void createReConvergenceMap() {
     for (int i = 0; i < circuitModel->num_ands; i++) {
@@ -179,7 +182,9 @@ double getAndGateReConvergenceSATNum(unsigned int andLit) {
                         continue;
                     }
 
-                    // 计算两条路径关联的输入
+                    //
+                    reConvergencePath1.pop_back();
+                    reConvergencePath2.pop_back();
                     getPathAssociatedInputs(reConvergencePath1, associatedInputSet1);
                     getPathAssociatedInputs(reConvergencePath2, associatedInputSet2);
                     setUnion(associatedInputSet1, associatedInputSet2, unionSet);
@@ -247,4 +252,11 @@ double getReConvergencePathSATNum(const std::vector<unsigned int>& path1,
     }
 
     return satNum;
+}
+
+void releaseReConvergenceSATMem() {
+    // TODO: release memory
+    delete associatedInputSet1;
+    delete associatedInputSet2;
+    delete unionSet;
 }

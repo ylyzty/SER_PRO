@@ -70,5 +70,9 @@ double getReConvergencePathSATNum(const std::vector<unsigned int>& path1,
                                   const std::vector<unsigned int>& path2,
                                   std::set<unsigned int>* inputSet);
 
+/**
+ * 释放申请的内存空间
+ */
+void releaseReConvergenceSATMem();
 
 #endif //SER_PRO_RECONVERGENCESAT_H
