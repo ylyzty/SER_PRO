@@ -31,7 +31,7 @@ void reConvergenceSATEntry() {
 
     for (int i = 0; i < circuitModel->num_ands; i++) {
         // 计算每个节点的 所有路径重汇聚频率总和
-        getAndGateReConvergenceSATNum(indexToAndLit[i]);
+        andNodeIndexToSAT[i] = getAndGateReConvergenceSATNum(indexToAndLit[i]);
     }
     printMap(andNodeIndexToSAT);
 
@@ -198,7 +198,7 @@ double getAndGateReConvergenceSATNum(unsigned int andLit) {
         }
     }
 
-    andNodeIndexToSAT[startIndex] = satSum;
+    return satSum;
 }
 
 double getReConvergencePathSATNum(const std::vector<unsigned int>& path1,
